@@ -1,0 +1,17 @@
+name: tsmom
+tier: 1
+universe: [BTCUSDT, ETHUSDT]
+bar: 1h
+params:
+  lookback_bars: [24, 48, 96, 168]
+  vol_halflife: [36, 72, 144]
+  sigma_target: 0.40
+  max_leverage: 2.0
+  no_trade_band: 0.10
+regime_overlay:
+  enabled: true
+  turbulent_scalar: 0.5
+costs: conservative
+validation:
+  walkforward: {train_days: 365, test_days: 90, step_days: 90}
+  gates: default

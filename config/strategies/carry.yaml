@@ -1,0 +1,12 @@
+# §8.3 — delta-neutral funding capture. Not directional.
+name: carry
+tier: 1
+universe: [BTCUSDT, ETHUSDT]
+params:
+  margin_buffer_apr: 0.02
+  entry_threshold_multiple: 2.0   # entry = 2 * round-trip cost APR + margin buffer
+  exit_threshold_apr: 0.0
+  max_notional_fraction: 0.5
+priors:
+  survival_rate: 0.40             # ~40% of attractive opportunities survive costs
+costs: conservative

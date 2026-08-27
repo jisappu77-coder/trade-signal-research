@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+      - run: uv pip install --system -e ".[dev]"
+      - name: ruff
+        run: ruff check src/ tests/
+      - name: mypy --strict
+        run: mypy
+      # The §14.2 anti-lookahead suite runs on every signal, on every push.
+      - name: anti-lookahead tests (SPEC.md §14.2)
+        run: pytest tests/test_antilookahead.py -v
+      - name: full suite with coverage gates (SPEC.md §14.1)
+        run: |
+          pytest tests/ \
+            --cov=cryptolab --cov-report=term-missing \
+            --cov-fail-under=70
+      - name: coverage gate for backtest/ and validation/ (>=90%)
+        run: |
+          pytest tests/ -q \
+            --cov=cryptolab.backtest --cov=cryptolab.validation \
+            --cov-report=term --cov-fail-under=90

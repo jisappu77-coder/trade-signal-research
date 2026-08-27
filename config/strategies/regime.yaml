@@ -1,0 +1,16 @@
+# §8.2 — a defensive overlay, never a standalone strategy.
+name: regime
+tier: 1
+universe: [BTCUSDT, ETHUSDT]
+bar: 4h
+params:
+  vol_percentile: 80
+  vol_lookback_days: 180
+  drawdown_lookback_days: 60
+  drawdown_threshold: -0.20
+  turbulent_scalar: 0.5
+  calm_scalar: 1.0
+acceptance:
+  min_drawdown_reduction: 0.15    # must cut max DD by >=15%
+  max_sharpe_cost: 0.10           # while costing <=0.10 net Sharpe
+costs: conservative
