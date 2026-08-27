@@ -13,6 +13,11 @@ from cryptolab.backtest.costs import CostRegime, FillCost, fill_cost, funding_pa
 
 DEFAULT_NO_TRADE_BAND = 0.10
 
+# A flatten computed in float leaves a residue of order 1e-16 units. Left alone it is a position
+# forever: it accrues funding at every settlement and counts as "held" in any exposure statistic.
+# Anything this small is snapped to a true zero.
+FLAT_EPSILON = 1e-12
+
 
 @dataclass(frozen=True, slots=True)
 class Position:
@@ -89,6 +94,8 @@ def apply_fill(
     )
 
     new_units = state.position.units + delta_units
+    if abs(new_units) < FLAT_EPSILON * max(1.0, abs(state.position.units)):
+        new_units = 0.0
     # Weighted average entry price; a flip resets the basis to the fill price.
     if state.position.units == 0 or (state.position.units > 0) != (new_units > 0):
         avg_price = price

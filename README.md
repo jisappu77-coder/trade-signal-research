@@ -55,7 +55,28 @@ cryptolab collect-oi      # run daily — see the warning below
 - **DSR units.** The deflated-Sharpe functions reject inputs that look annualised; annualisation
   happens only at the reporting boundary.
 
+## Validated against real data
+
+[`docs/real-data-validation.md`](docs/real-data-validation.md) records a run over **54 months of
+real Binance BTC and ETH perpetual data** (2020-01 → 2024-06, sealed period untouched): 39,409 bars
+and 4,927 funding settlements per symbol, all passing the §6 gate with zero findings. Every §14.2
+check was re-run against real prices, including the funding sign test against 4,926 actual
+settlements.
+
+Real data exposed four engine defects that 230 passing tests had not — most seriously, a
+`max_gross_leverage` limit that was declared but never checked against realised exposure, which
+combined with capacity-rejected delevering to run a book to 32,000× leverage. All four are fixed
+and covered by regression tests. The report documents them.
+
+**Note on sources:** `fapi.binance.com` returns HTTP 451 (geo-restricted) from some hosts, for every
+endpoint. Funding therefore defaults to the monthly archive, which is the better source regardless.
+Open interest has no archive fallback and needs a host Binance will serve.
+
 ## Constraints you cannot engineer around
+
+**Archive coverage starts 2020-01.** The §10.1 train window opens 2019-01-01, and the monthly
+UM-futures archive has no months before 2020-01 for BTCUSDT or ETHUSDT. The first year of the train
+window cannot be filled from this source.
 
 **Open interest.** Binance retains ~30 days of open-interest history and it cannot be backfilled at
 any price. Every day the daily collector does not run is a day permanently lost. `cryptolab init`

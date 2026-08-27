@@ -13,7 +13,7 @@ from cryptolab.data.ingest import (
     open_interest_loss_notice,
     write_quality_reports,
 )
-from cryptolab.data.quality import check_ohlcv
+from cryptolab.data.quality import check_funding, check_ohlcv
 from cryptolab.data.sources import binance_api, binance_archive
 from cryptolab.data.sources.binance_archive import ArchiveError, ArchiveObject
 from cryptolab.data.store import to_ms
@@ -148,3 +148,68 @@ def test_quality_reports_are_persisted(tmp_path, bars):
     paths = write_quality_reports([report], tmp_path)
     stored = json.loads(paths[0].read_text())
     assert stored["symbol"] == "BTCUSDT" and stored["passed"] is True
+
+
+# ---- archive funding (the path that works without the REST API) ---------------------
+
+FUNDING_CSV = "\n".join(
+    ["calc_time,funding_interval_hours,last_funding_rate"]
+    + [f"{1_546_300_800_000 + i * 28_800_000 + 2},8,0.0001{i}" for i in range(6)]
+)
+
+
+def _funding_zip(csv: str = FUNDING_CSV) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as zf:
+        zf.writestr("BTCUSDT-fundingRate-2019-01.csv", csv)
+    return buffer.getvalue()
+
+
+def test_funding_archive_uri_matches_the_published_layout():
+    obj = ArchiveObject.funding("BTCUSDT", 2021, 1)
+    assert obj.uri.endswith("fundingRate/BTCUSDT/BTCUSDT-fundingRate-2021-01.zip")
+
+
+def test_kline_uri_still_keys_on_bar_size():
+    assert ArchiveObject("klines", "BTCUSDT", "1h", 2021, 1).uri.endswith("BTCUSDT-1h-2021-01.zip")
+
+
+def test_parse_funding_archive_produces_the_canonical_schema():
+    df = binance_archive.parse_funding(_funding_zip(), "BTCUSDT", "test://")
+    assert df.columns == ["funding_time", "symbol", "funding_rate", "mark_price"]
+    assert df.height == 6
+    assert df["funding_time"].is_sorted()
+
+
+def test_archive_funding_has_no_mark_price():
+    """The archive carries no mark price; basis must join markPriceKlines instead (§5.1)."""
+    df = binance_archive.parse_funding(_funding_zip(), "BTCUSDT", "test://")
+    assert df["mark_price"].null_count() == df.height
+
+
+def test_archive_funding_passes_the_quality_gate():
+    df = binance_archive.parse_funding(_funding_zip(), "BTCUSDT", "test://")
+    assert check_funding(df, "BTCUSDT").passed
+
+
+def test_archive_states_the_funding_interval():
+    """Better than inferring from gaps — §5.1 warns some symbols moved from 8h to 4h."""
+    assert binance_archive.funding_interval_hours(_funding_zip(), "test://") == 8.0
+
+
+def test_a_funding_interval_change_within_a_month_is_refused():
+    """A mid-month cadence change is a contract spec change and must not be silently averaged."""
+    mixed = FUNDING_CSV.replace(",8,0.00013", ",4,0.00013")
+    with pytest.raises(ArchiveError, match="funding interval changes"):
+        binance_archive.funding_interval_hours(_funding_zip(mixed), "test://")
+
+
+def test_archive_funding_dedupes_repeated_settlements():
+    doubled = FUNDING_CSV + "\n" + FUNDING_CSV.split("\n", 1)[1]
+    df = binance_archive.parse_funding(_funding_zip(doubled), "BTCUSDT", "test://")
+    assert df.height == 6
+
+
+def test_a_corrupt_funding_archive_raises():
+    with pytest.raises(ArchiveError, match="not a valid zip"):
+        binance_archive.parse_funding(b"junk", "BTCUSDT", "test://")

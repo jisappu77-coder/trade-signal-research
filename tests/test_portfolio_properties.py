@@ -108,10 +108,11 @@ def test_funding_is_symmetric_in_position_sign(price, rate, unit):
 
 @settings(max_examples=100)
 @given(unit=st.floats(0.1, 5.0), price=prices)
-def test_a_closed_position_returns_to_flat(unit, price):
+def test_a_closed_position_returns_to_exactly_flat(unit, price):
+    """Exactly zero, not approximately: a 1e-16 residue accrues funding forever."""
     state = PortfolioState(cash=1_000_000.0)
     apply_fill(state, unit, price, 1e12, get_regime("expected"))
     apply_fill(state, -unit, price, 1e12, get_regime("expected"))
-    assert state.position.units == pytest.approx(0.0, abs=1e-12)
+    assert state.position.units == 0.0
     # A round trip costs exactly two fills' worth and nothing more.
     assert state.cash == pytest.approx(1_000_000.0 - state.realised_costs, rel=1e-9)

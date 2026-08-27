@@ -70,21 +70,35 @@ def ingest(
 @app.command("ingest-funding")
 def ingest_funding_cmd(
     symbol: Annotated[str, typer.Argument()],
-    start: Annotated[str, typer.Option()] = "2019-01-01",
+    start: Annotated[str, typer.Option()] = "2020-01-01",
     end: Annotated[str, typer.Option()] = "2024-06-30",
+    source: Annotated[str, typer.Option(help="archive (default) or rest")] = "archive",
     config: Annotated[Path, typer.Option()] = Path("config/base.yaml"),
 ) -> None:
-    """Ingest funding-rate history."""
-    from cryptolab.data.ingest import ingest_funding
+    """Ingest funding-rate history from the monthly archive, or the REST API with --source rest."""
+    from cryptolab.data.ingest import ingest_funding, ingest_funding_archive
     from cryptolab.data.store import ParquetStore
 
     base = BaseConfig.load(config)
     store = ParquetStore(base.data_root, base.splits)
-    result = asyncio.run(ingest_funding(store, symbol, start, end, exchange=base.exchange))
-    typer.echo(f"{symbol} funding: {result.rows:,} settlements")
-    if result.report and not result.report.passed:
-        for finding in result.report.findings:
-            typer.secho(f"  [{finding.check}] {finding.detail}", fg=typer.colors.RED)
+    if source == "archive":
+        results = asyncio.run(
+            ingest_funding_archive(store, symbol, start, end, exchange=base.exchange)
+        )
+    elif source == "rest":
+        results = [asyncio.run(ingest_funding(store, symbol, start, end, exchange=base.exchange))]
+    else:
+        typer.secho(f"unknown source {source!r}; use 'archive' or 'rest'", fg=typer.colors.RED)
+        raise typer.Exit(code=2)
+
+    total = sum(r.rows for r in results)
+    typer.echo(f"{symbol} funding: {total:,} settlements from {len(results)} objects")
+    failed = [r for r in results if r.report is not None and not r.report.passed]
+    for result in failed:
+        typer.secho(f"  QUALITY FAIL {result.year}-{result.month:02d}", fg=typer.colors.RED)
+        for finding in result.report.findings if result.report else []:
+            typer.echo(f"    [{finding.check}] {finding.detail}")
+    if failed:
         raise typer.Exit(code=1)
 
 

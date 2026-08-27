@@ -75,18 +75,26 @@ def test_warmup_bars_are_flat(bars):
     assert result.equity_curve["position_units"].head(50).abs().sum() == 0.0
 
 
-def test_capacity_breach_raises_by_default():
+def test_capacity_breach_rejects_the_fill_by_default():
+    """§7: reject the fill and log it. The position stays put; the run continues."""
+    thin = synthetic_bars(50, seed=1, quote_volume=1_000.0)
+    result = run_backtest(thin, constant_targets(thin, 1.0), BacktestConfig())
+    assert result.capacity_breaches > 0
+    assert result.equity_curve["position_units"].abs().max() == 0.0
+    assert result.equity_curve["traded_notional"].sum() == 0.0
+
+
+def test_capacity_breach_can_be_made_fatal():
     thin = synthetic_bars(50, seed=1, quote_volume=1_000.0)
     with pytest.raises(CapacityBreachError):
-        run_backtest(thin, constant_targets(thin, 1.0), BacktestConfig())
+        run_backtest(
+            thin, constant_targets(thin, 1.0), BacktestConfig(on_capacity_breach="raise")
+        )
 
 
-def test_capacity_breach_can_be_counted_instead_of_raising():
-    thin = synthetic_bars(50, seed=1, quote_volume=1_000.0)
-    result = run_backtest(
-        thin, constant_targets(thin, 1.0), BacktestConfig(allow_capacity_breach=True)
-    )
-    assert result.capacity_breaches > 0
+def test_a_deep_book_reports_no_breaches(bars):
+    result = run_backtest(bars, constant_targets(bars, 1.0), BacktestConfig(initial_equity=10_000.0))
+    assert result.capacity_breaches == 0
 
 
 def test_funding_is_applied_at_settlement_timestamps():
@@ -145,19 +153,85 @@ def test_breakeven_cost_is_positive_for_a_profitable_path():
 
 
 def test_risk_engine_can_force_a_flatten():
+    """A levered book in a crash breaches the leverage cap before the drawdown limit.
+
+    Equity falls while the position does not, so realised leverage rises first. That ordering is
+    deliberate: §13 evaluates limits most-severe-first, and running at 3x is a worse state to be in
+    than being 10% down.
+    """
     falling = synthetic_bars(400, seed=4, drift=-0.02, vol=0.01)
-    risk = RiskEngine(limits=RiskLimits(drawdown_limit=0.10, daily_loss_limit=0.99))
+    risk = RiskEngine(
+        limits=RiskLimits(drawdown_limit=0.99, daily_loss_limit=0.99, leverage_tolerance=0.02)
+    )
     result = run_backtest(
         falling,
         constant_targets(falling, 1.0),
-        BacktestConfig(regime_name="optimistic"),
+        BacktestConfig(regime_name="optimistic", no_trade_band=0.01),
         risk=risk,
     )
     assert risk.kill_switch.tripped
-    assert risk.kill_switch.reason == KillReason.DRAWDOWN
+    assert risk.kill_switch.reason == KillReason.LEVERAGE
     assert result.equity_curve["killed"].any()
     # Once killed, the book is flat and stays flat.
     assert result.equity_curve.filter(pl.col("killed"))["position_units"].abs().max() == 0.0
+
+
+def test_unlevered_crash_trips_the_drawdown_limit_instead():
+    """With no leverage to breach, the drawdown limit is the binding constraint."""
+    falling = synthetic_bars(400, seed=4, drift=-0.02, vol=0.01)
+    risk = RiskEngine(
+        limits=RiskLimits(drawdown_limit=0.10, daily_loss_limit=0.99, max_gross_leverage=1.0)
+    )
+    run_backtest(
+        falling,
+        constant_targets(falling, 0.5),
+        BacktestConfig(regime_name="optimistic", max_leverage=1.0),
+        risk=risk,
+    )
+    assert risk.kill_switch.reason == KillReason.DRAWDOWN
+
+
+def test_a_book_that_cannot_delever_is_stopped_not_spiralled():
+    """The defect this guards: a capacity-rejected reduction used to let leverage run away.
+
+    Risk-reducing orders are now worked down to the participation cap, and the leverage limit is
+    checked against realised exposure, so the book delevers or is killed — never both refused.
+    """
+    thin = synthetic_bars(300, seed=9, drift=-0.03, vol=0.02, quote_volume=2e6)
+    risk = RiskEngine(limits=RiskLimits(daily_loss_limit=0.99, drawdown_limit=0.99))
+    result = run_backtest(
+        thin, constant_targets(thin, 1.0), BacktestConfig(initial_equity=50_000.0), risk=risk
+    )
+    assert result.equity_curve["exposure"].abs().max() < 10.0
+    assert not result.went_bankrupt or result.equity_curve["equity"].min() > -1e-6
+
+
+def test_insolvency_ends_the_run():
+    """Trading on from negative equity produces a meaningless path, so the run stops.
+
+    Equity-proportional sizing decays toward zero without crossing it, so insolvency needs a gap
+    bigger than 1/leverage in a single bar — exactly the case a backtest must not paper over.
+    """
+    flat = synthetic_bars(100, seed=11, vol=0.0)
+    crashed = flat["close"].to_numpy().copy()
+    crashed[50:] *= 0.3  # a -70% gap, deeper than a 2x book can absorb
+    gap = flat.with_columns(
+        pl.Series("close", crashed),
+        pl.Series("open", [flat["open"][0], *crashed[:-1]]),
+        pl.Series("high", crashed * 1.001),
+        pl.Series("low", crashed * 0.999),
+    )
+    risk = RiskEngine(
+        limits=RiskLimits(
+            daily_loss_limit=1.0, drawdown_limit=1.0, max_gross_leverage=10**6,
+            max_consecutive_losses=10**9,
+        )
+    )
+    result = run_backtest(
+        gap, constant_targets(gap, 1.0), BacktestConfig(regime_name="optimistic"), risk=risk
+    )
+    assert result.went_bankrupt
+    assert result.bars < gap.height  # stopped early rather than running to the end
 
 
 def test_kill_switch_writes_an_audit_entry():

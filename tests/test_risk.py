@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from cryptolab.backtest.portfolio import DEFAULT_NO_TRADE_BAND
 from cryptolab.backtest.risk import (
     KillReason,
     KillSwitch,
@@ -96,6 +97,43 @@ def test_day_rollover_rebases_the_daily_limit():
     engine.observe(0, 100_000)
     engine.observe(86_400_000, 90_000)  # new day: 90k is the new baseline
     assert not engine.check(86_400_000, 88_000)
+
+
+def test_realised_leverage_breach_trips():
+    engine = RiskEngine(limits=RiskLimits(max_gross_leverage=2.0))
+    engine.observe(0, 100_000)
+    assert engine.check(0, 100_000, gross_notional=1_000_000)
+    assert engine.kill_switch.reason == KillReason.LEVERAGE
+
+
+def test_a_fully_invested_book_at_the_cap_does_not_trip():
+    """Sitting exactly at the limit is compliance, not a breach."""
+    engine = RiskEngine(limits=RiskLimits(max_gross_leverage=2.0))
+    engine.observe(0, 100_000)
+    assert not engine.check(0, 100_000, gross_notional=200_000)
+
+
+def test_leverage_tolerance_exceeds_the_no_trade_band():
+    """Otherwise the §9.3 band alone kills every fully-invested book.
+
+    The band lets exposure drift by `band` before rebalancing; if the risk engine trips inside that
+    drift, a compliant strategy is stopped out for doing exactly what §9.3 tells it to do.
+    """
+    assert RiskLimits().leverage_tolerance > DEFAULT_NO_TRADE_BAND
+
+
+def test_band_sized_drift_is_tolerated():
+    engine = RiskEngine(limits=RiskLimits(max_gross_leverage=2.0))
+    engine.observe(0, 100_000)
+    drifted = 200_000 * (1 + DEFAULT_NO_TRADE_BAND)
+    assert not engine.check(0, 100_000, gross_notional=drifted)
+
+
+def test_insolvency_trips_ahead_of_everything_else():
+    engine = RiskEngine()
+    engine.observe(0, 100_000)
+    assert engine.check(0, -5_000, gross_notional=1e9)
+    assert engine.kill_switch.reason == KillReason.INSOLVENT
 
 
 def test_audit_text_is_explicit_when_empty():

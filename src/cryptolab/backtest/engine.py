@@ -10,8 +10,9 @@ The event loop order is fixed by §9.2 and the implementation follows it literal
 
 from __future__ import annotations
 
+import math
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import polars as pl
@@ -48,7 +49,10 @@ class BacktestConfig:
     max_participation: float = 0.01
     maker: bool = False
     warmup_bars: int = 0
-    allow_capacity_breach: bool = False
+    # §7: "Reject any fill where order_notional > 0.01 * bar_quote_volume and log it as a capacity
+    # breach." Rejecting the fill and counting it is therefore the default; "raise" is the stricter
+    # mode used where a breach should stop the run outright.
+    on_capacity_breach: Literal["reject", "raise"] = "reject"
 
     @property
     def regime(self) -> CostRegime:
@@ -67,6 +71,7 @@ class BacktestResult:
     net_pnl: float
     turnover_per_year: float
     capacity_breaches: int
+    partial_fills: int
     bars: int
     interval_ms: int
 
@@ -170,7 +175,42 @@ class BacktestResult:
             "breakeven_cost_bps": self.breakeven_cost_bps(),
             "cost_drag_bps_per_year": self.cost_drag_bps_per_year(),
             "capacity_breaches": self.capacity_breaches,
+            "partial_fills": self.partial_fills,
+            "went_bankrupt": self.went_bankrupt,
         }
+
+
+def _apply_capacity_limit(
+    delta_units: float,
+    current_units: float,
+    fill_price: float,
+    bar_volume: float,
+    config: BacktestConfig,
+) -> tuple[float, int, int]:
+    """Apply the §7 participation limit to one order.
+
+    Returns (units_to_trade, breaches, partial_fills). A risk-*increasing* order above the limit
+    simply does not happen, per §7. A risk-*reducing* order is instead worked down to the limit and
+    continued on later bars: rejecting it outright traps the book, which then cannot delever while
+    every corrective trade is refused, and realised leverage runs away. The partial still pays full
+    impact, so this is not a discount.
+    """
+    if fill_price <= 0:
+        return 0.0, 0, 0
+    cap_units = config.max_participation * bar_volume / fill_price
+    if abs(delta_units) <= cap_units:
+        return delta_units, 0, 0
+    if config.on_capacity_breach == "raise":
+        raise CapacityBreachError(
+            f"order of {abs(delta_units) * fill_price:,.0f} exceeds the "
+            f"{config.max_participation:.2%} limit on a bar of {bar_volume:,.0f}"
+        )
+    reduces_risk = abs(current_units + delta_units) < abs(current_units)
+    if reduces_risk:
+        # Shaved by an ulp-ish margin: clipping to exactly the cap lands on the boundary, and
+        # `fill_cost` recomputes participation from the rounded notional and rejects it.
+        return math.copysign(cap_units * (1.0 - 1e-9), delta_units), 1, 1
+    return 0.0, 1, 0
 
 
 def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps of §9.2 literally;
@@ -224,6 +264,7 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
     state = PortfolioState(cash=config.initial_equity)
     records: list[dict[str, Any]] = []
     capacity_breaches = 0
+    partial_fills = 0
     bankrupt = False
     prev_equity = config.initial_equity
 
@@ -250,12 +291,17 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
 
         # 2. mark existing positions to market
         equity_now = state.equity(mark_price)
-        if equity_now <= 0 and not bankrupt:
+        if equity_now <= 0:
+            # The account is gone. Continuing to trade from negative equity produces a P&L path
+            # that means nothing, so the run ends here and the result is flagged.
             bankrupt = True
 
-        # 3. check the risk engine — may force flatten
+        # 3. check the risk engine — may force flatten. Realised exposure is passed so the
+        # gross-leverage limit is enforced against the actual book, not just the target.
         risk.observe(t, equity_now)
-        forced_flat = risk.check(t, equity_now)
+        forced_flat = risk.check(
+            t, equity_now, gross_notional=state.position.notional(mark_price)
+        )
 
         # 4. read target_position (computed at t-1 close), 5. diff, 6. no-trade band
         #
@@ -275,12 +321,20 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
         traded_notional = 0.0
         if delta_target != 0.0 and equity_now > 0 and fill_price > 0:
             delta_units = delta_target * denominator / fill_price
-            try:
+            bar_volume = float(volumes[i])
+            capped, breached, partial = _apply_capacity_limit(
+                delta_units, state.position.units, fill_price, bar_volume, config
+            )
+            capacity_breaches += breached
+            partial_fills += partial
+            delta_units = capped
+
+            if delta_units != 0.0:
                 state, cost = apply_fill(
                     state,
                     delta_units,
                     fill_price,
-                    float(volumes[i]),
+                    bar_volume,
                     regime,
                     half_spread_bps=config.half_spread_bps,
                     maker=config.maker,
@@ -288,10 +342,6 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
                     max_participation=config.max_participation,
                 )
                 traded_notional = cost.notional
-            except CapacityBreachError:
-                capacity_breaches += 1
-                if not config.allow_capacity_breach:
-                    raise
 
         # 8. record state
         equity_end = state.equity(mark_price)
@@ -316,6 +366,8 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
             }
         )
         prev_equity = equity_end
+        if bankrupt:
+            break
 
     curve = pl.DataFrame(records)
     net_pnl = float(curve["equity"][-1]) - config.initial_equity
@@ -333,6 +385,7 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
         net_pnl=net_pnl,
         turnover_per_year=turnover,
         capacity_breaches=capacity_breaches,
+        partial_fills=partial_fills,
         bars=curve.height,
         interval_ms=step,
     )

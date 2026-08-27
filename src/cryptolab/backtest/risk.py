@@ -20,7 +20,9 @@ class KillReason(StrEnum):
     DRAWDOWN = "drawdown_limit"
     CONSECUTIVE_LOSSES = "max_consecutive_losses"
     STALE_DATA = "data_staleness"
+    LEVERAGE = "max_gross_leverage"
     VOLATILITY = "volatility_circuit_breaker"
+    INSOLVENT = "insolvent"
     MANUAL = "manual"
 
 
@@ -35,6 +37,11 @@ class RiskLimits:
     max_consecutive_losses: int = 8
     staleness_intervals: int = 2
     volatility_circuit_multiple: float = 4.0
+    # A fully-invested book sits exactly at `max_gross_leverage`, and two things push it over
+    # without anything having gone wrong: marking to market, and the §9.3 no-trade band, which
+    # deliberately lets exposure drift before rebalancing. The tolerance must therefore exceed the
+    # band in use (default 0.10) or the band alone guarantees a kill on every fully-invested book.
+    leverage_tolerance: float = 0.15
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,52 +107,84 @@ class RiskEngine:
         bars_since_last_data: int = 0,
         realised_vol: float | None = None,
         baseline_vol: float | None = None,
+        gross_notional: float | None = None,
     ) -> bool:
-        """Return True if the engine demands a flatten. Trips the kill switch with a reason."""
-        if self.day_start_equity > 0:
-            day_loss = (equity - self.day_start_equity) / self.day_start_equity
-            if day_loss <= -self.limits.daily_loss_limit:
-                self.kill_switch.trip(
-                    timestamp, KillReason.DAILY_LOSS, f"day P&L {day_loss:.2%}"
-                )
-                return True
+        """Return True if the engine demands a flatten. Trips the kill switch with a reason.
 
-        if self.peak_equity > 0:
-            drawdown = (equity - self.peak_equity) / self.peak_equity
-            if drawdown <= -self.limits.drawdown_limit:
-                self.kill_switch.trip(timestamp, KillReason.DRAWDOWN, f"drawdown {drawdown:.2%}")
-                return True
+        `gross_notional` is the *realised* exposure. Checking it matters: clamping the target alone
+        leaves the limit unenforced when the book cannot delever, and realised leverage then runs
+        away from a target that looks obedient.
 
-        if self.consecutive_losses >= self.limits.max_consecutive_losses:
-            self.kill_switch.trip(
-                timestamp,
-                KillReason.CONSECUTIVE_LOSSES,
-                f"{self.consecutive_losses} consecutive losing trades",
-            )
-            return True
-
-        if bars_since_last_data > self.limits.staleness_intervals:
-            self.kill_switch.trip(
-                timestamp,
-                KillReason.STALE_DATA,
-                f"no fresh bar for {bars_since_last_data} intervals",
-            )
-            return True
-
-        if (
-            realised_vol is not None
-            and baseline_vol is not None
-            and baseline_vol > 0
-            and realised_vol / baseline_vol > self.limits.volatility_circuit_multiple
+        Limits are evaluated in severity order and the first breach wins, so the recorded reason is
+        the most serious one rather than whichever happened to be checked first.
+        """
+        for reason, breached, detail in self._breaches(
+            equity,
+            bars_since_last_data=bars_since_last_data,
+            realised_vol=realised_vol,
+            baseline_vol=baseline_vol,
+            gross_notional=gross_notional,
         ):
-            self.kill_switch.trip(
-                timestamp,
-                KillReason.VOLATILITY,
-                f"realised vol {realised_vol / baseline_vol:.1f}x baseline",
-            )
-            return True
-
+            if breached:
+                self.kill_switch.trip(timestamp, reason, detail)
+                return True
         return False
+
+    def _breaches(
+        self,
+        equity: float,
+        *,
+        bars_since_last_data: int,
+        realised_vol: float | None,
+        baseline_vol: float | None,
+        gross_notional: float | None,
+    ) -> list[tuple[KillReason, bool, str]]:
+        """Every limit as a (reason, breached, detail) triple, most severe first."""
+        leverage = (
+            abs(gross_notional) / equity if gross_notional is not None and equity > 0 else 0.0
+        )
+        day_loss = (
+            (equity - self.day_start_equity) / self.day_start_equity
+            if self.day_start_equity > 0
+            else 0.0
+        )
+        drawdown = (equity - self.peak_equity) / self.peak_equity if self.peak_equity > 0 else 0.0
+        vol_ratio = (
+            realised_vol / baseline_vol
+            if realised_vol is not None and baseline_vol is not None and baseline_vol > 0
+            else 0.0
+        )
+        limits = self.limits
+        return [
+            (KillReason.INSOLVENT, equity <= 0, f"equity {equity:,.0f} is not positive"),
+            (
+                KillReason.LEVERAGE,
+                leverage > limits.max_gross_leverage * (1.0 + limits.leverage_tolerance),
+                f"realised gross leverage {leverage:.1f}x exceeds "
+                f"{limits.max_gross_leverage:.1f}x",
+            ),
+            (
+                KillReason.DAILY_LOSS,
+                day_loss <= -limits.daily_loss_limit,
+                f"day P&L {day_loss:.2%}",
+            ),
+            (KillReason.DRAWDOWN, drawdown <= -limits.drawdown_limit, f"drawdown {drawdown:.2%}"),
+            (
+                KillReason.CONSECUTIVE_LOSSES,
+                self.consecutive_losses >= limits.max_consecutive_losses,
+                f"{self.consecutive_losses} consecutive losing trades",
+            ),
+            (
+                KillReason.STALE_DATA,
+                bars_since_last_data > limits.staleness_intervals,
+                f"no fresh bar for {bars_since_last_data} intervals",
+            ),
+            (
+                KillReason.VOLATILITY,
+                vol_ratio > limits.volatility_circuit_multiple,
+                f"realised vol {vol_ratio:.1f}x baseline",
+            ),
+        ]
 
     def clamp(self, target_position: float) -> float:
         """Apply per-symbol and gross-leverage caps to a desired exposure."""

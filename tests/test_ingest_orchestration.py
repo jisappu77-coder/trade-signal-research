@@ -11,7 +11,12 @@ import pytest
 from typer.testing import CliRunner
 
 from cryptolab.cli import app
-from cryptolab.data.ingest import collect_open_interest, ingest_funding, ingest_klines
+from cryptolab.data.ingest import (
+    collect_open_interest,
+    ingest_funding,
+    ingest_funding_archive,
+    ingest_klines,
+)
 from cryptolab.data.sources import binance_api
 
 runner = CliRunner()
@@ -280,7 +285,8 @@ def test_cli_ingest_funding(tmp_path, monkeypatch):
     )
     result = runner.invoke(
         app,
-        ["ingest-funding", "BTCUSDT", "--start", "2019-01-01", "--end", "2019-01-05",
+        ["ingest-funding", "BTCUSDT", "--source", "rest",
+         "--start", "2019-01-01", "--end", "2019-01-05",
          "--config", _cli_config(tmp_path)],
     )
     assert result.exit_code == 0 and "1 settlements" in result.stdout
@@ -296,7 +302,8 @@ def test_cli_ingest_funding_fails_on_a_cap_breach(tmp_path, monkeypatch):
     )
     result = runner.invoke(
         app,
-        ["ingest-funding", "BTCUSDT", "--start", "2019-01-01", "--end", "2019-01-05",
+        ["ingest-funding", "BTCUSDT", "--source", "rest",
+         "--start", "2019-01-01", "--end", "2019-01-05",
          "--config", _cli_config(tmp_path)],
     )
     assert result.exit_code == 1 and "funding_cap_breach" in result.stdout
@@ -320,3 +327,47 @@ def test_cli_collect_oi_warns_before_collecting(tmp_path, monkeypatch):
     assert result.exit_code == 0
     assert "PERMANENTLY UNRECOVERABLE" in result.stdout
     assert "BTCUSDT: 1 open-interest points" in result.stdout
+
+
+def test_ingest_funding_archive_walks_months(store):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "fundingRate" not in str(request.url):
+            return httpx.Response(404)
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as zf:
+            zf.writestr(
+                "f.csv",
+                "calc_time,funding_interval_hours,last_funding_rate\n"
+                + "\n".join(
+                    f"{1_577_836_800_000 + i * 28_800_000},8,0.0001" for i in range(3)
+                ),
+            )
+        return httpx.Response(200, content=buffer.getvalue())
+
+    results = asyncio.run(
+        ingest_funding_archive(
+            store, "BTCUSDT", "2020-01-01", "2020-03-31", client=_client(handler)
+        )
+    )
+    assert len(results) == 3
+    assert all(r.interval == "8h" for r in results)
+    assert sum(r.rows for r in results) == 9
+
+
+def test_ingest_funding_archive_skips_a_missing_month(store):
+    results = asyncio.run(
+        ingest_funding_archive(
+            store, "BTCUSDT", "2020-01-01", "2020-01-31",
+            client=_client(lambda _: httpx.Response(404)),
+        )
+    )
+    assert results[0].skipped == "404"
+
+
+def test_cli_ingest_funding_rejects_an_unknown_source(tmp_path):
+    result = runner.invoke(
+        app,
+        ["ingest-funding", "BTCUSDT", "--source", "carrier-pigeon",
+         "--config", _cli_config(tmp_path)],
+    )
+    assert result.exit_code == 2 and "unknown source" in result.stdout
