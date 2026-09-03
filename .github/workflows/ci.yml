@@ -26,9 +26,10 @@ jobs:
       - name: Auto-format workspace layout
         run: uv run --with ruff ruff format src/ tests/
 
-      # Fix: Removed the --editable flag. uv run implicitly mounts the project as editable.
+      # Fix: Swapped 'src/' for 'MYPYPATH=src' and checked via the package flag '-p cryptolab'
       - name: Run mypy type checker
-        run: uv run --with mypy --with types-PyYAML mypy src/
+        run: |
+          MYPYPATH=src uv run --with mypy --with types-PyYAML mypy -p cryptolab
 
       # The §14.2 anti-lookahead suite runs on every signal, on every push.
       - name: anti-lookahead tests (SPEC.md §14.2)
