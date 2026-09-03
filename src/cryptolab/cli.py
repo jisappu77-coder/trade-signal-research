@@ -136,6 +136,38 @@ def registry_status(
             raise typer.Exit(code=1)
 
 
+@app.command("report")
+def report(
+    out: Annotated[Path, typer.Option(help="Directory to write the static site into")] = Path("site"),
+    start: Annotated[str, typer.Option()] = "2020-01-01",
+    end: Annotated[str, typer.Option()] = "2024-06-30",
+    config: Annotated[Path, typer.Option()] = Path("config/base.yaml"),
+) -> None:
+    """Build the static HTML report site (§12): one report per run, plus the comparison index.
+
+    Until Phase 4 lands there is no Tier-1 strategy to report on, so this renders the Phase 1-3
+    harness validation over real data. Every run it produces is labelled Tier 3, not promotable.
+    """
+    from cryptolab.data.store import ParquetStore
+    from cryptolab.reporting.harness import build_harness_site
+    from cryptolab.validation.registry import TrialRegistry
+
+    base = BaseConfig.load(config)
+    with TrialRegistry(base.registry_path) as registry:
+        store = registry.bind_store(ParquetStore(base.data_root, base.splits))
+        paths = build_harness_site(
+            store,
+            registry,
+            out,
+            symbols=base.universe,
+            start=start,
+            end=end,
+            exchange=base.exchange,
+        )
+    typer.echo(f"wrote {len(paths)} files to {out}/")
+    typer.secho(f"open {paths[0]}", fg=typer.colors.GREEN)
+
+
 @app.command("harness-check")
 def harness_check() -> None:
     """Phase 3 acceptance: exercise DSR, PBO and walk-forward on synthetic strategies."""

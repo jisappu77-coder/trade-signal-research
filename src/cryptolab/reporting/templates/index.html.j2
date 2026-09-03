@@ -1,0 +1,63 @@
+{% extends "_base.html.j2" %}
+{% block title %}cryptolab — strategy index{% endblock %}
+{% block heading %}
+  <h1>cryptolab — strategy index</h1>
+  <p class="sub">Every run ever recorded, passes and failures alike. The record of what did not
+     work is the product (§12).</p>
+{% endblock %}
+
+{% block body %}
+<div class="stats">
+  <div class="stat"><div class="stat-k">Runs</div><div class="stat-v">{{ total }}</div>
+    <div class="stat-n">all retained</div></div>
+  <div class="stat" data-state="validated"><div class="stat-k">Validated</div>
+    <div class="stat-v">{{ counts.validated }}</div>
+    <div class="stat-n">cleared every §11 gate</div></div>
+  <div class="stat" data-state="candidate"><div class="stat-k">Failed a gate</div>
+    <div class="stat-v">{{ counts.candidate }}</div><div class="stat-n">still a candidate</div></div>
+  <div class="stat" data-state="killed"><div class="stat-k">Killed</div>
+    <div class="stat-v">{{ counts.killed }}</div>
+    <div class="stat-n">§11.1 — do not tune</div></div>
+</div>
+
+<h2>All runs</h2>
+<div class="scroll">
+<table>
+  <thead><tr>
+    <th>Strategy</th><th>Verdict</th><th class="num">Net Sharpe</th><th class="num">Deflated</th>
+    <th class="num">PBO</th><th class="num">Break-even</th><th class="num">Turnover</th>
+    <th class="num">N</th>
+  </tr></thead>
+  <tbody>
+  {% for r in reports %}
+    <tr>
+      <td><a href="{{ r.slug }}.html">{{ r.strategy }}</a>
+        <div class="stat-n">{{ r.period }}{% if not r.promotable %} · tier {{ r.tier }}, not
+          promotable{% endif %}{% if r.mostly_flat %} · <strong>flat {{ r.flat_fraction | pct }}
+          of the period{% if r.kill_reason %}, {{ r.kill_reason }} from
+          {{ r.killed_from }}{% endif %}</strong>{% endif %}</div></td>
+      <td><span class="pill" data-state="{{ r.status }}"><i></i>
+        {{ verdict_status[r.status][2] }}</span></td>
+      <td class="num">{{ r.net_sharpe | num }}</td>
+      <td class="num">{{ r.deflated_sharpe | num }}</td>
+      <td class="num">{{ r.pbo | num }}</td>
+      <td class="num">{{ r.breakeven_bps | num(1) }}</td>
+      <td class="num">{{ r.turnover | num(0) }}×</td>
+      <td class="num">{{ r.trials }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if counts.validated == 0 %}
+<div class="card" style="margin-top:20px">
+  <p class="note" style="margin:0"><strong>No strategy has passed the §11 gates.</strong>
+  That is the current, honest state of this research — not a gap in the reporting. v1 places no
+  orders and holds no trade-permissioned keys, and §18 requires a gate pass before live wiring is
+  even discussed.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block foot %}Generated {{ generated_at }} · cryptolab{% endblock %}

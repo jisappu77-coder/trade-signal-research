@@ -1,0 +1,63 @@
+name: pages
+
+# Publishes the §12 report site. Failures are published alongside passes: the record of what did
+# not work is the artifact this system exists to produce.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+          enable-cache: true
+
+      - name: Install project and development dependencies
+        run: uv sync --dev
+
+      # The parquet lake is gitignored, so CI ingests what the site needs. This is real market
+      # data from the public archive - the site is never built from fixtures.
+      - name: Ingest BTC and ETH klines and funding
+        run: |
+          for symbol in BTCUSDT ETHUSDT; do
+            uv run cryptolab ingest "$symbol" --interval 1h \
+              --start 2020-01-01 --end 2024-06-30
+            uv run cryptolab ingest-funding "$symbol" \
+              --start 2020-01-01 --end 2024-06-30
+          done
+
+      - name: Build the report site
+        run: uv run cryptolab report --out site
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
