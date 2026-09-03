@@ -47,23 +47,23 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF", "ANN", "PL"]
 ignore = [
-    "ANN401",   # **kwargs: Any is the right type in a few generic helpers
-    "PLR0913",  # cost/backtest constructors legitimately take many parameters
-    "PLR2004",  # magic values in comparisons are usually spec thresholds, named in context
-    "RUF002",   # docstrings quote the spec's mathematical notation (γ, →, ×) verbatim
+    "ANN401",
+    "PLR0913",
+    "PLR2004",
+    "RUF002",
     "RUF003",
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Tests declare bare fixtures and long scenario bodies on purpose.
 "tests/*" = ["ANN", "PLR0915", "RUF012", "B017"]
-# The CLI imports lazily so `--help` does not pay for polars/scipy.
 "src/cryptolab/cli.py" = ["PLC0415"]
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
 files = ["src"]
+explicit_package_bases = true
+mypy_path = ["src"]
 plugins = []
 
 [[tool.mypy.overrides]]
