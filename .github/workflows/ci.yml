@@ -11,9 +11,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          # Required if you want to commit fixes back automatically
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
@@ -21,13 +18,13 @@ jobs:
           python-version: "3.11"
           enable-cache: true 
 
-      # Fixes the imports automatically during the CI run so it doesn't fail
+      # Automatically resolves import order errors natively during execution
       - name: Run ruff linter and auto-fix
         run: uv run --with ruff ruff check src/ tests/ --fix
 
-      # Optional: Double checks that the code conforms to standard formatting rules
-      - name: Check formatting alignment
-        run: uv run --with ruff ruff format --check src/ tests/
+      # Re-formats the code inside the runner workspace so subsequent tools pass cleanly
+      - name: Auto-format workspace layout
+        run: uv run --with ruff ruff format src/ tests/
 
       - name: Run mypy type checker
         run: uv run --with mypy mypy
@@ -47,3 +44,4 @@ jobs:
           uv run --with pytest --with pytest-cov pytest tests/ -q \
             --cov=cryptolab.backtest --cov=cryptolab.validation \
             --cov-report=term --cov-fail-under=90
+            
