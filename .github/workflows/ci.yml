@@ -8,6 +8,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -16,7 +17,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.11"
-          enable-cache: true 
+          enable-cache: true
 
       # Automatically resolves import order errors natively during execution
       - name: Run ruff linter and auto-fix
@@ -26,10 +27,12 @@ jobs:
       - name: Auto-format workspace layout
         run: uv run --with ruff ruff format src/ tests/
 
-      # Fix: Swapped 'src/' for 'MYPYPATH=src' and checked via the package flag '-p cryptolab'
+      # Use the local src/ package tree explicitly so mypy doesn't resolve
+      # cryptolab.data modules as an untyped installed package.
       - name: Run mypy type checker
         run: |
-          MYPYPATH=src uv run --with mypy --with types-PyYAML mypy -p cryptolab
+          uv run --with mypy --with types-PyYAML \
+            mypy --explicit-package-bases src/cryptolab
 
       # The §14.2 anti-lookahead suite runs on every signal, on every push.
       - name: anti-lookahead tests (SPEC.md §14.2)
@@ -38,12 +41,14 @@ jobs:
       - name: full suite with coverage gates (SPEC.md §14.1)
         run: |
           uv run --with pytest --with pytest-cov pytest tests/ \
-            --cov=cryptolab --cov-report=term-missing \
+            --cov=cryptolab \
+            --cov-report=term-missing \
             --cov-fail-under=70
 
       - name: coverage gate for backtest/ and validation/ (>=90%)
         run: |
           uv run --with pytest --with pytest-cov pytest tests/ -q \
-            --cov=cryptolab.backtest --cov=cryptolab.validation \
-            --cov-report=term --cov-fail-under=90
-            
+            --cov=cryptolab.backtest \
+            --cov=cryptolab.validation \
+            --cov-report=term \
+            --cov-fail-under=90
