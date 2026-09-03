@@ -28,5 +28,11 @@ def bars():
 
 
 @pytest.fixture
+def bars_4h():
+    """A 4h series. TSMOM declares both bar sizes, so both must be exercised."""
+    return synthetic_bars(2000, seed=42, interval_ms=14_400_000)
+
+
+@pytest.fixture
 def train_ms():
     return to_ms("2019-01-01"), to_ms("2022-12-31")

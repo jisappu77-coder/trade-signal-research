@@ -66,10 +66,20 @@ def test_shift_test_catches_a_real_lookahead_bug(bars):
 
 
 def _shuffled_bars(bars: pl.DataFrame, seed: int) -> pl.DataFrame:
-    """Rebuild a price path from the same returns in random order."""
+    """Rebuild a price path from the same returns in random order, with the drift removed.
+
+    Shuffling alone preserves the sum of returns, so every shuffled path keeps the original drift.
+    A signal that merely holds a direction — and especially one that levers *up* when volatility is
+    low, as any vol-scaled signal does — can harvest that drift and look like it has foresight. The
+    test would then fail a perfectly causal strategy.
+
+    Demeaning is also what "returns indistinguishable from zero" should mean: the null hypothesis is
+    no *predictability*, tested on a path with no drift to find.
+    """
     rng = np.random.default_rng(seed)
     close = bars["close"].to_numpy()
     rets = np.diff(close) / close[:-1]
+    rets = rets - rets.mean()
     rng.shuffle(rets)
     new_close = close[0] * np.cumprod(1 + rets)
     new_close = np.concatenate([[close[0]], new_close])
@@ -91,7 +101,7 @@ def test_shuffle_test_sharpe_indistinguishable_from_zero(bars, signal):
     """
     config = BacktestConfig(regime_name="conservative", warmup_bars=200)
     sharpes = []
-    for seed in range(6):
+    for seed in range(12):
         shuffled = _shuffled_bars(bars, seed)
         targets = signal.generate(shuffled, _params(signal))
         result = run_backtest(shuffled, targets, config)

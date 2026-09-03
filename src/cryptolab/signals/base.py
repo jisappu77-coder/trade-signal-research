@@ -90,6 +90,14 @@ class Signal(ABC):
         )
         if out["target_position"].is_null().any():
             raise ValueError(f"{self.name}.generate produced null target_position")
+        # NaN is caught by the range check below only as an accident of polars' comparison
+        # semantics, and reported as "outside [-1, 1]", which sends the reader hunting for a
+        # leverage bug. A vol-scaled signal reaches NaN via 0 * inf when sigma is zero.
+        if out["target_position"].is_nan().any():
+            raise ValueError(
+                f"{self.name}.generate produced NaN target_position; a vol-scaled signal reaches "
+                "this when sigma is zero — fill it before returning"
+            )
         extreme = out.filter(pl.col("target_position").abs() > 1.0 + 1e-9)
         if extreme.height:
             raise ValueError(

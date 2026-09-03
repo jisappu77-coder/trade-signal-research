@@ -250,3 +250,64 @@ def test_summary_reports_every_header_field(bars):
         "capacity_breaches",
     ):
         assert key in summary
+
+
+# ---- cost units (§7.1, §9.4) ---------------------------------------------------------
+
+
+def test_breakeven_is_a_round_trip_figure():
+    """The §11 gate compares break-even against 2 x round_trip, so this must be round-trip.
+
+    Returning a one-way figure here silently demanded ~4x the real hurdle.
+    """
+    rising = synthetic_bars(600, seed=3, drift=0.002, vol=0.004)
+    result = run_backtest(rising, constant_targets(rising, 1.0), BacktestConfig(regime_name="optimistic"))
+    assert result.breakeven_cost_bps() == pytest.approx(2.0 * result.one_way_breakeven_cost_bps())
+    assert result.breakeven_cost_bps() > 0
+
+
+def test_turnover_is_counted_in_round_trips():
+    """§9.4's arithmetic assumes round trips: 10x/day at 11 bps round-trip is ~110 bps/day.
+
+    `traded_notional` sums one-way fills, so counting it directly doubled every cost-drag figure.
+    """
+    bars = synthetic_bars(3000, seed=4)
+    result = run_backtest(
+        bars, MomentumProbe().generate(bars, {"lookback": 24}), BacktestConfig(warmup_bars=100)
+    )
+    traded = float(result.equity_curve["traded_notional"].sum())
+    times = result.equity_curve["open_time"]
+    span_years = (times[-1] - times[0]) / (365.25 * 86_400_000)  # as the engine measures it
+    one_way_turnover = traded / result.config.initial_equity / span_years
+    assert result.turnover_per_year == pytest.approx(one_way_turnover / 2.0, rel=1e-6)
+
+
+def test_cost_drag_formula_reconciles_with_realised_fees():
+    """The §9.4 formula and the fees actually charged must agree when nothing else is charged.
+
+    With zero slippage, zero impact and no half-spread, fees are the only cost, so the formula and
+    the realised figure are the same quantity. A factor-of-two gap here means the turnover
+    convention has drifted from the cost convention.
+    """
+    bars = synthetic_bars(4000, seed=3)
+    result = run_backtest(
+        bars,
+        MomentumProbe().generate(bars, {"lookback": 24}),
+        BacktestConfig(regime_name="optimistic", half_spread_bps=0.0, warmup_bars=100),
+    )
+    assert result.cost_drag_bps_per_year() == pytest.approx(
+        result.realised_cost_drag_bps_per_year(), rel=0.01
+    )
+
+
+def test_realised_cost_exceeds_the_formula_once_impact_is_charged():
+    """Under conservative costs the formula omits impact and half-spread, so realised is higher."""
+    bars = synthetic_bars(4000, seed=3)
+    result = run_backtest(
+        bars,
+        MomentumProbe().generate(bars, {"lookback": 24}),
+        BacktestConfig(regime_name="conservative", warmup_bars=100),
+    )
+    assert result.realised_cost_drag_bps_per_year() > result.cost_drag_bps_per_year()
+    # ...but not by anything like a factor of two, which would signal a unit error.
+    assert result.realised_cost_drag_bps_per_year() < 1.5 * result.cost_drag_bps_per_year()
