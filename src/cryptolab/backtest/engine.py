@@ -361,6 +361,8 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
 
         # 7. fill at t open + slippage + fees
         traded_notional = 0.0
+        units_before_fill = state.position.units
+        costs_before_fill = state.realised_costs
         if delta_target != 0.0 and equity_now > 0 and fill_price > 0:
             delta_units = delta_target * denominator / fill_price
             bar_volume = float(volumes[i])
@@ -390,6 +392,16 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
         records.append(
             {
                 "open_time": t,
+                # Attribution needs the position held *through* the bar and the cost charged *at*
+                # this bar. Reconstructing them from position_units[i-1] and a diff of the
+                # cumulative cost column works but is fragile; recording them makes leg
+                # attribution a projection rather than an inference.
+                "units_before_fill": units_before_fill,
+                # The fill price is the bar's open (§9.1). Attribution needs it because the
+                # position changes mid-bar: prev_close -> open is earned by the old position,
+                # open -> close by the new one.
+                "fill_price": fill_price,
+                "bar_cost": state.realised_costs - costs_before_fill,
                 "price": mark_price,
                 "target_position": float(effective[i]),
                 "position_units": state.position.units,
