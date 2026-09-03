@@ -136,6 +136,51 @@ def registry_status(
             raise typer.Exit(code=1)
 
 
+@app.command("live-signal")
+def live_signal(
+    holding_days: Annotated[float, typer.Option(help="Hold the entry threshold is priced for")] = 7.0,
+    regime: Annotated[str, typer.Option()] = "conservative",
+    log: Annotated[Path, typer.Option(help="Append each reading to this JSONL file")] = Path(
+        "data/live_watch.jsonl"
+    ),
+    config: Annotated[Path, typer.Option()] = Path("config/base.yaml"),
+) -> None:
+    """Evaluate the CARRY entry condition against live market data. Reads only; places no orders.
+
+    Uses OKX because Binance returns HTTP 451 from some hosts. Funding differs between venues, so
+    this is indicative of the strategy's state rather than a continuation of the backtested series.
+    """
+    import asyncio
+
+    import httpx
+
+    from cryptolab.data.sources.okx_live import fetch_all
+    from cryptolab.live import append_observation, evaluate
+
+    base = BaseConfig.load(config)
+
+    async def read() -> None:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            quotes = await fetch_all(client, list(base.universe))
+        for quote in quotes:
+            signal = evaluate(quote, holding_days=holding_days, regime_name=regime)
+            append_observation(signal, log)
+            typer.secho(signal.line(), fg=typer.colors.GREEN if signal.fires else typer.colors.WHITE)
+
+    asyncio.run(read())
+    typer.echo(f"appended to {log}")
+
+
+@app.command("watch-summary")
+def watch_summary(
+    log: Annotated[Path, typer.Option()] = Path("data/live_watch.jsonl"),
+) -> None:
+    """Summarise a completed live watch: how often the signal fired and how close it came."""
+    from cryptolab.live import read_observations, summarise_watch
+
+    typer.echo(summarise_watch(read_observations(log)))
+
+
 @app.command("run-tsmom")
 def run_tsmom(
     out: Annotated[Path, typer.Option(help="Directory to write the static site into")] = Path("site"),

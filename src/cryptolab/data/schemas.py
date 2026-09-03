@@ -64,8 +64,11 @@ CONTRACT_SPEC_CHANGES: Final[dict[str, pl.DataType]] = {
     "handled": pl.Boolean(),
 }
 
+# Spot klines share the OHLCV shape but are a separate dataset: CARRY is long spot / short perp,
+# so both must coexist in the lake without one overwriting the other.
 SCHEMAS: Final[dict[str, dict[str, pl.DataType]]] = {
     "ohlcv": OHLCV,
+    "spot_ohlcv": OHLCV,
     "funding": FUNDING,
     "open_interest": OPEN_INTEREST,
     "mark_price": MARK_PRICE,
@@ -75,6 +78,7 @@ SCHEMAS: Final[dict[str, dict[str, pl.DataType]]] = {
 # The timestamp column that orders each dataset.
 TIME_COLUMN: Final[dict[str, str]] = {
     "ohlcv": "open_time",
+    "spot_ohlcv": "open_time",
     "funding": "funding_time",
     "open_interest": "timestamp",
     "mark_price": "open_time",

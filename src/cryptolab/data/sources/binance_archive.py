@@ -16,6 +16,7 @@ import polars as pl
 from cryptolab.data import schemas
 
 BASE = "https://data.binance.vision/data/futures/um/monthly"
+SPOT_BASE = "https://data.binance.vision/data/spot/monthly"
 
 # The archive's kline CSV column order. It has no header row.
 _KLINE_COLUMNS = [
@@ -64,6 +65,12 @@ class ArchiveObject:
     interval: str
     year: int
     month: int
+    spot: bool = False
+
+    @staticmethod
+    def spot_klines(symbol: str, interval: str, year: int, month: int) -> ArchiveObject:
+        """Spot klines — the long leg of a cash-and-carry position (§8.3)."""
+        return ArchiveObject("klines", symbol, interval, year, month, spot=True)
 
     @staticmethod
     def funding(symbol: str, year: int, month: int) -> ArchiveObject:
@@ -77,7 +84,9 @@ class ArchiveObject:
 
     @property
     def uri(self) -> str:
-        parts = [BASE, self.dataset, self.symbol]
+        # Spot lives under a different archive root than USD-M futures.
+        base = SPOT_BASE if self.spot else BASE
+        parts = [base, self.dataset, self.symbol]
         if self.interval:
             parts.append(self.interval)
         return "/".join([*parts, self.name])
@@ -104,7 +113,7 @@ def parse_klines(raw: bytes, source_uri: str, *, dataset: str = "ohlcv") -> pl.D
     )
     if dataset == "mark_price":
         return schemas.validate(df.select(list(schemas.MARK_PRICE)), "mark_price")
-    return schemas.validate(df.select(list(schemas.OHLCV)), "ohlcv")
+    return schemas.validate(df.select(list(schemas.OHLCV)), dataset)
 
 
 def _has_header(csv_bytes: bytes) -> bool:

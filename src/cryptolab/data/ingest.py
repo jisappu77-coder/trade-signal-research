@@ -74,16 +74,17 @@ async def ingest_klines(
     owns_client = client is None
     client = client or httpx.AsyncClient(follow_redirects=True)
     archive_dataset = "markPriceKlines" if dataset == "mark_price" else "klines"
+    spot = dataset == "spot_ohlcv"
     semaphore = asyncio.Semaphore(concurrency)
 
     async def one(year: int, month: int) -> IngestResult:
-        obj = ArchiveObject(archive_dataset, symbol, interval, year, month)
+        obj = ArchiveObject(archive_dataset, symbol, interval, year, month, spot=spot)
         async with semaphore:
             raw = await binance_archive.fetch(client, obj)
         if raw is None:
             return IngestResult(symbol, interval, year, month, 0, obj.uri, None, skipped="404")
         df = binance_archive.parse_klines(raw, obj.uri, dataset=dataset)
-        report = quality.check_ohlcv(df, symbol, interval) if dataset == "ohlcv" else None
+        report = quality.check_ohlcv(df, symbol, interval) if dataset in ("ohlcv", "spot_ohlcv") else None
         store.write(df, dataset, exchange=exchange, symbol=symbol, source_uri=obj.uri)
         return IngestResult(symbol, interval, year, month, df.height, obj.uri, report)
 

@@ -131,8 +131,8 @@ class ParquetStore:
         reproduces the native archive bar for bar and leaves the lake intact.
         """
         df = schemas.validate(df, dataset)
-        if dataset == "ohlcv" and not allow_interval_change:
-            self._assert_interval_matches(df, exchange=exchange, symbol=symbol)
+        if dataset in ("ohlcv", "spot_ohlcv") and not allow_interval_change:
+            self._assert_interval_matches(df, dataset, exchange=exchange, symbol=symbol)
         stamped = df.with_columns(
             pl.lit(ingested_at if ingested_at is not None else _now_ms(), dtype=pl.Int64).alias(
                 "ingested_at"
@@ -153,9 +153,9 @@ class ParquetStore:
             written.append(path)
         return written
 
-    def _assert_interval_matches(self, df: pl.DataFrame, *, exchange: str, symbol: str) -> None:
+    def _assert_interval_matches(self, df: pl.DataFrame, dataset: str, *, exchange: str, symbol: str) -> None:
         """Refuse a write whose bar spacing differs from what this symbol already holds."""
-        existing = sorted(self.dataset_dir("ohlcv", exchange, symbol).glob("year=*/month=*/*.parquet"))
+        existing = sorted(self.dataset_dir(dataset, exchange, symbol).glob("year=*/month=*/*.parquet"))
         if not existing or df.height < 2:
             return
         stored = pl.read_parquet(existing[0], columns=["open_time"]).sort("open_time")
