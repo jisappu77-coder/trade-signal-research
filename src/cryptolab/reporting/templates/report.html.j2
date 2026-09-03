@@ -1,0 +1,154 @@
+{% extends "_base.html.j2" %}
+{% block title %}{{ r.strategy }} — cryptolab{% endblock %}
+{% block heading %}
+  <h1>{{ r.strategy }}</h1>
+  <p class="sub">{{ r.period }} · {{ r.regime.name }} costs ({{ r.regime.taker_fee_bps }} bps taker)
+     · N = {{ r.trials }} trials · <a href="index.html">all runs</a></p>
+{% endblock %}
+
+{% block body %}
+<div class="verdict" data-state="{{ r.status }}">
+  <span class="verdict-icon" aria-hidden="true">{{ status_icon }}</span>
+  <div>
+    <div class="verdict-word">{{ verdict_word }}</div>
+    <div class="verdict-text">{{ r.verdict_line | replace("VERDICT    ", "") }}</div>
+  </div>
+</div>
+
+{% if r.mostly_flat %}
+<div class="verdict" data-state="killed" style="margin-top:12px">
+  <span class="verdict-icon" aria-hidden="true">!</span>
+  <div>
+    <div class="verdict-word">BOOK WAS FLAT FOR {{ r.flat_fraction | pct }} OF THIS PERIOD</div>
+    <div class="verdict-text">
+      {% if r.kill_reason %}The risk engine forced a flatten on {{ r.killed_from }}
+        ({{ r.kill_reason }}) and the book held no position for most of what followed.{% else %}
+        The book held no position for most of this period.{% endif %}
+      Every metric below is therefore computed largely over cash: the return and Sharpe describe a
+      short burst of trading padded out with idle time, and cannot be read as ordinary performance.
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if not r.promotable %}
+<p class="note" style="margin-top:12px">
+  <strong>Tier {{ r.tier }} — not promotable.</strong> This run exists to exercise the harness.
+  Its numbers are not a result and must not be read as one.
+</p>
+{% endif %}
+
+<div class="stats">
+  <div class="stat">
+    <div class="stat-k">Net Sharpe</div>
+    <div class="stat-v">{{ r.net_sharpe | num }}</div>
+    <div class="stat-n">annualised, out of sample{% if r.mostly_flat %} · over a mostly-flat book{% endif %}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-k">Deflated Sharpe</div>
+    <div class="stat-v">{{ r.deflated_sharpe | num }}</div>
+    <div class="stat-n">deflated by N = {{ r.trials }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-k">PBO</div>
+    <div class="stat-v">{{ r.pbo | num }}</div>
+    <div class="stat-n">overfitting probability</div>
+  </div>
+  <div class="stat">
+    <div class="stat-k">Break-even cost</div>
+    <div class="stat-v">{{ r.breakeven_bps | num(1) }}</div>
+    <div class="stat-n">bps round-trip · gate &gt; {{ (2 * r.regime.round_trip_taker_bps) | num(1) }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-k">Turnover</div>
+    <div class="stat-v">{{ r.turnover | num(0) }}×</div>
+    <div class="stat-n">per year</div>
+  </div>
+  <div class="stat">
+    <div class="stat-k">Cost drag</div>
+    <div class="stat-v">{{ r.cost_drag_bps | num(0) }}</div>
+    <div class="stat-n">bps per year</div>
+  </div>
+</div>
+
+<h2>Report header (§12)</h2>
+<pre class="header-block">{{ r.header_block() }}</pre>
+
+<h2>Promotion gates (§11)</h2>
+<div class="scroll">
+  <table>
+    <thead><tr>
+      <th>Gate</th><th class="num">Value</th><th class="num">Threshold</th>
+      <th>Against gate</th><th>Result</th>
+    </tr></thead>
+    <tbody>
+    {% for g in r.gates.gates %}
+      <tr>
+        <td>{{ g.name }}<div class="stat-n">{{ g.detail }}</div></td>
+        <td class="num">{{ g.value | num }}</td>
+        <td class="num">{{ g.threshold | num }}</td>
+        <td>{{ gate_bar(g.value, g.threshold, passed=g.passed,
+                        higher_is_better=(g.name not in ("pbo", "max_drawdown"))) }}</td>
+        <td>
+          <span class="pill" data-state="{{ 'validated' if g.passed else 'killed' }}">
+            <i></i>{{ "pass" if g.passed else "fail" }}</span>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if r.gates.kill_reasons %}
+<h2>Kill criteria (§11.1)</h2>
+<div class="card">
+  <p class="note" style="margin-top:0">
+    These are not gates to be tuned past. §11.1 says delete the candidate.</p>
+  <ul class="note" style="margin-bottom:0">
+    {% for reason in r.gates.kill_reasons %}<li>{{ reason }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if charts.equity %}
+<h2>Equity curve</h2>
+{{ charts.equity | safe }}
+<p class="caption">Net of fees, slippage and funding, against gross, on a log axis — a compounding
+   curve on a linear axis flattens every move after the first multiple. The gap between the lines
+   is the cost model doing its work. A curve that climbs then goes flat is usually the §7 capacity
+   limit binding as the book outgrows the bars it trades on, not the signal switching off.</p>
+{% endif %}
+
+{% if charts.folds %}
+<h2>Walk-forward fold dispersion</h2>
+{{ charts.folds | safe }}
+<p class="caption">Out-of-sample Sharpe per fold. §10.2 makes dispersion the headline robustness
+   metric: a high mean with folds scattered either side of zero is not a strategy.</p>
+{% endif %}
+
+{% if charts.regimes %}
+<h2>Cost regime sensitivity</h2>
+{{ charts.regimes | safe }}
+<p class="caption">Net Sharpe under each of the four fixed §7 regimes; the headline
+   ({{ r.regime.name }}) is ringed. The regimes are a fixed adversary, not a parameter.</p>
+{% endif %}
+
+{% if charts.grid %}
+<h2>Parameter grid</h2>
+{{ charts.grid | safe }}
+<p class="caption">Every registered configuration. §11 wants a plateau — a lone spike beside flat
+   or negative neighbours is a fitted artifact.</p>
+{% endif %}
+
+{% if r.notes %}
+<h2>Caveats</h2>
+<div class="card"><ul class="note" style="margin:0">
+  {% for note in r.notes %}<li>{{ note }}</li>{% endfor %}
+</ul></div>
+{% endif %}
+{% endblock %}
+
+{% block foot %}
+Generated {{ r.generated_at }} · verdict computed by <code>validation.gates</code>, never written by
+hand · failed reports are retained and published (§12).
+{% endblock %}

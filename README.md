@@ -15,7 +15,7 @@ Its output is a **verdict** on whether an edge exists — not a P&L, and not a t
 | 4 | TSMOM | not started |
 | 5 | REGIME overlay | not started |
 | 6 | CARRY | not started |
-| 7 | Reporting + comparison index | not started |
+| 7 | Reporting + comparison index | **done** — static site, see below |
 
 **No Tier-1 signal exists yet, and that is deliberate.** SPEC.md §15 requires the validation harness
 to be green before the first signal is written. The CLI has no `run-strategy` command for the same
@@ -54,6 +54,32 @@ cryptolab collect-oi      # run daily — see the warning below
   is computed, never written by hand.
 - **DSR units.** The deflated-Sharpe functions reject inputs that look annualised; annualisation
   happens only at the reporting boundary.
+
+## The report site (§12)
+
+`cryptolab report --out site` builds a self-contained static site: one HTML report per run plus a
+comparison index. No server, no build step, no external assets — a report opens from disk.
+
+Each report carries the mandatory §12 header block, the eight §11 gates with a meter showing where
+each value sits against its threshold, and four figures: the equity curve (log-scaled, net against
+gross), walk-forward fold dispersion, cost-regime sensitivity, and the parameter grid. The verdict
+line is rendered from `validation.gates`, never written into a template.
+
+Two things the reports refuse to bury:
+
+- **Failures are published.** The index shows killed and failed runs with the same prominence as
+  passes, and it says plainly when nothing has passed. §12 calls that record the product.
+- **A mostly-flat book is flagged above the metrics.** If the risk engine forced a flatten and the
+  book then sat in cash, the report says so before showing a Sharpe — because that Sharpe is
+  computed largely over cash, and it is otherwise invisible.
+
+Charts are hand-built inline SVG rather than matplotlib rasters (a documented deviation from §3):
+every mark reads a CSS custom property, so light and dark are a token swap, and each mark carries
+a hover readout. The palette is validated for colour-vision deficiency; status colour never carries
+meaning without an icon and a word beside it.
+
+Published to GitHub Pages from `main` by `.github/workflows/pages.yml`, which ingests real archive
+data first — the site is never built from fixtures.
 
 ## Validated against real data
 

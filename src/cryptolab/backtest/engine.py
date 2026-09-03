@@ -74,6 +74,7 @@ class BacktestResult:
     partial_fills: int
     bars: int
     interval_ms: int
+    kill_reason: str | None = None
 
     @property
     def returns(self) -> np.ndarray:
@@ -134,6 +135,32 @@ class BacktestResult:
     def went_bankrupt(self) -> bool:
         return bool(self.equity_curve["bankrupt"].any())
 
+    @property
+    def flat_fraction(self) -> float:
+        """Share of bars holding no position.
+
+        A run that spends most of its life flat has metrics computed largely over cash. Sharpe and
+        return over such a window describe a short burst of trading padded with nothing, so this is
+        reported beside them rather than left for the reader to infer from the equity curve.
+        """
+        if self.equity_curve.height == 0:
+            return 0.0
+        flat = (self.equity_curve["position_units"] == 0).sum()
+        return float(flat) / self.equity_curve.height
+
+    @property
+    def killed_fraction(self) -> float:
+        """Share of bars after the risk engine forced a flatten."""
+        if self.equity_curve.height == 0:
+            return 0.0
+        return float(self.equity_curve["killed"].sum()) / self.equity_curve.height
+
+    @property
+    def first_kill_time(self) -> int | None:
+        """Timestamp of the first kill-switch trip, if any."""
+        killed = self.equity_curve.filter(pl.col("killed"))
+        return int(killed["open_time"][0]) if killed.height else None
+
     def max_drawdown(self) -> float:
         """Maximum peak-to-trough drawdown as a positive fraction."""
         equity = self.equity_curve["equity"].to_numpy()
@@ -177,6 +204,9 @@ class BacktestResult:
             "capacity_breaches": self.capacity_breaches,
             "partial_fills": self.partial_fills,
             "went_bankrupt": self.went_bankrupt,
+            "flat_fraction": self.flat_fraction,
+            "killed_fraction": self.killed_fraction,
+            "kill_reason": self.kill_reason,
         }
 
 
@@ -376,6 +406,7 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
         turnover_per_year=turnover,
         capacity_breaches=capacity_breaches,
         partial_fills=partial_fills,
+        kill_reason=risk.kill_switch.reason.value if risk.kill_switch.reason else None,
         bars=curve.height,
         interval_ms=step,
     )
