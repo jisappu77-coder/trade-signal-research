@@ -26,13 +26,10 @@ jobs:
       - name: Auto-format workspace layout
         run: uv run --with ruff ruff format src/ tests/
 
-      # Fix: Installed missing stubs interactively and pointed to the explicit package source layout root
+      # Fix: Added editable package installation and injected third-party type stubs explicitly
       - name: Run mypy type checker
         run: |
-          MYPYPATH=src uv run --with mypy mypy src/ \
-            --install-types --non-interactive \
-            --explicit-package-bases \
-            --namespace-packages
+          uv run --editable . --with mypy --with types-PyYAML mypy src/
 
       # The §14.2 anti-lookahead suite runs on every signal, on every push.
       - name: anti-lookahead tests (SPEC.md §14.2)
