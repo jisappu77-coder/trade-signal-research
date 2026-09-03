@@ -100,9 +100,7 @@ def apply_fill(
     if state.position.units == 0 or (state.position.units > 0) != (new_units > 0):
         avg_price = price
     elif abs(new_units) > abs(state.position.units):
-        avg_price = (
-            state.position.avg_price * state.position.units + price * delta_units
-        ) / new_units
+        avg_price = (state.position.avg_price * state.position.units + price * delta_units) / new_units
     else:
         avg_price = state.position.avg_price
 

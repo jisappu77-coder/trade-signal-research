@@ -80,9 +80,7 @@ def test_missing_column_is_refused():
 
 def test_unsorted_timestamps_are_refused():
     signal = ZeroSignal()
-    frame = pl.DataFrame(
-        {"timestamp": [2, 1], "target_position": [0.0, 0.0], "confidence": [1.0, 1.0]}
-    )
+    frame = pl.DataFrame({"timestamp": [2, 1], "target_position": [0.0, 0.0], "confidence": [1.0, 1.0]})
     with pytest.raises(ValueError, match="unsorted timestamps"):
         signal.validate_output(frame)
 

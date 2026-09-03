@@ -114,9 +114,7 @@ def test_shuffle_test_catches_a_real_lookahead_bug(bars):
     shuffled = _shuffled_bars(synthetic_bars(200, seed=42, quote_volume=1e12), 0)
     targets = LookaheadSignal().generate(shuffled, {})
     result = run_backtest(shuffled, targets, config)
-    assert result.sharpe(gross=True) > 0.05, (
-        "the lookahead signal failed to cheat — the harness is broken"
-    )
+    assert result.sharpe(gross=True) > 0.05, "the lookahead signal failed to cheat — the harness is broken"
 
 
 # ---- 3. cost monotonicity ------------------------------------------------------------
@@ -210,9 +208,7 @@ def test_funding_regime_multiplier_scales_magnitude_only():
     """Worse regimes scale funding magnitude; they never flip its sign."""
     state_long = PortfolioState(cash=0.0)
     state_long.position = type(state_long.position)(units=1.0, avg_price=20_000.0)
-    paid = [
-        abs(apply_funding(state_long, 20_000.0, 0.0001, get_regime(n))) for n in REGIME_ORDER
-    ]
+    paid = [abs(apply_funding(state_long, 20_000.0, 0.0001, get_regime(n))) for n in REGIME_ORDER]
     assert paid == sorted(paid)
 
 

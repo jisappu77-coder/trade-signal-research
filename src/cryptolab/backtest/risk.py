@@ -140,13 +140,9 @@ class RiskEngine:
         gross_notional: float | None,
     ) -> list[tuple[KillReason, bool, str]]:
         """Every limit as a (reason, breached, detail) triple, most severe first."""
-        leverage = (
-            abs(gross_notional) / equity if gross_notional is not None and equity > 0 else 0.0
-        )
+        leverage = abs(gross_notional) / equity if gross_notional is not None and equity > 0 else 0.0
         day_loss = (
-            (equity - self.day_start_equity) / self.day_start_equity
-            if self.day_start_equity > 0
-            else 0.0
+            (equity - self.day_start_equity) / self.day_start_equity if self.day_start_equity > 0 else 0.0
         )
         drawdown = (equity - self.peak_equity) / self.peak_equity if self.peak_equity > 0 else 0.0
         vol_ratio = (
@@ -160,8 +156,7 @@ class RiskEngine:
             (
                 KillReason.LEVERAGE,
                 leverage > limits.max_gross_leverage * (1.0 + limits.leverage_tolerance),
-                f"realised gross leverage {leverage:.1f}x exceeds "
-                f"{limits.max_gross_leverage:.1f}x",
+                f"realised gross leverage {leverage:.1f}x exceeds {limits.max_gross_leverage:.1f}x",
             ),
             (
                 KillReason.DAILY_LOSS,

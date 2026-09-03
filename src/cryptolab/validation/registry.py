@@ -98,15 +98,11 @@ class TrialRegistry:
     # ---- secret ------------------------------------------------------------------
 
     def _load_or_create_secret(self) -> bytes:
-        row = self._conn.execute(
-            "SELECT value FROM registry_meta WHERE key = 'token_secret'"
-        ).fetchone()
+        row = self._conn.execute("SELECT value FROM registry_meta WHERE key = 'token_secret'").fetchone()
         if row is not None:
             return bytes(row["value"])
         secret = os.urandom(32)
-        self._conn.execute(
-            "INSERT INTO registry_meta (key, value) VALUES ('token_secret', ?)", (secret,)
-        )
+        self._conn.execute("INSERT INTO registry_meta (key, value) VALUES ('token_secret', ?)", (secret,))
         self._conn.commit()
         return secret
 
@@ -274,9 +270,7 @@ class TrialRegistry:
             return False
         if row["consumed_at"] is not None:
             return False
-        self._conn.execute(
-            "UPDATE test_tokens SET consumed_at = ? WHERE nonce = ?", (_now_ms(), token.nonce)
-        )
+        self._conn.execute("UPDATE test_tokens SET consumed_at = ? WHERE nonce = ?", (_now_ms(), token.nonce))
         self._conn.commit()
         return True
 

@@ -52,9 +52,7 @@ def test_annualised_sharpe_input_is_refused():
     """The §10.3 units trap: an annualised SR must not be silently accepted."""
     rng = np.random.default_rng(3)
     with pytest.raises(SharpeUnitsError, match="looks annualised"):
-        deflated_sharpe(
-            rng.normal(0.0, 0.01, 1000), n_trials=10, trial_sharpes=np.full(10, 2.5)
-        )
+        deflated_sharpe(rng.normal(0.0, 0.01, 1000), n_trials=10, trial_sharpes=np.full(10, 2.5))
 
 
 def test_returns_scaled_to_annual_units_are_refused():

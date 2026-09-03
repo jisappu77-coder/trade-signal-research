@@ -239,9 +239,7 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
     # onto bar t+1, so the loop below physically cannot see a same-bar signal.
     aligned = (
         bars.join(
-            targets.select(
-                pl.col("timestamp"), pl.col("target_position").cast(pl.Float64)
-            ).sort("timestamp"),
+            targets.select(pl.col("timestamp"), pl.col("target_position").cast(pl.Float64)).sort("timestamp"),
             left_on="open_time",
             right_on="timestamp",
             how="left",
@@ -285,9 +283,7 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
         if funding_times.size:
             due = funding_times[(funding_times > t - step) & (funding_times <= t)]
             for settlement in due:
-                funding_flow += apply_funding(
-                    state, fill_price, funding_map[int(settlement)], regime
-                )
+                funding_flow += apply_funding(state, fill_price, funding_map[int(settlement)], regime)
 
         # 2. mark existing positions to market
         equity_now = state.equity(mark_price)
@@ -299,9 +295,7 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
         # 3. check the risk engine — may force flatten. Realised exposure is passed so the
         # gross-leverage limit is enforced against the actual book, not just the target.
         risk.observe(t, equity_now)
-        forced_flat = risk.check(
-            t, equity_now, gross_notional=state.position.notional(mark_price)
-        )
+        forced_flat = risk.check(t, equity_now, gross_notional=state.position.notional(mark_price))
 
         # 4. read target_position (computed at t-1 close), 5. diff, 6. no-trade band
         #
@@ -309,9 +303,7 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
         # Comparing a target in [-1, 1] against a raw leverage ratio would make a fully-invested
         # position read back as 2.0 and churn the book every bar.
         warm = i < config.warmup_bars
-        desired = (
-            0.0 if (forced_flat or warm or bankrupt) else risk.clamp(float(effective[i]))
-        )
+        desired = 0.0 if (forced_flat or warm or bankrupt) else risk.clamp(float(effective[i]))
         denominator = equity_now * config.max_leverage
         current_target = state.position.notional(fill_price) / denominator if denominator > 0 else 0.0
         band = 0.0 if forced_flat else config.no_trade_band
@@ -351,9 +343,7 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
                 "price": mark_price,
                 "target_position": float(effective[i]),
                 "position_units": state.position.units,
-                "exposure": state.position.notional(mark_price) / equity_end
-                if equity_end > 0
-                else 0.0,
+                "exposure": state.position.notional(mark_price) / equity_end if equity_end > 0 else 0.0,
                 "cash": state.cash,
                 "equity": equity_end,
                 "traded_notional": traded_notional,

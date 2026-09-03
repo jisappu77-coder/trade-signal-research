@@ -46,24 +46,24 @@ def test_ingest_klines_writes_and_gates_each_month(store):
         return httpx.Response(404)
 
     results = asyncio.run(
-        ingest_klines(
-            store, "BTCUSDT", "1h", "2019-01-01", "2019-03-01", client=_client(handler)
-        )
+        ingest_klines(store, "BTCUSDT", "1h", "2019-01-01", "2019-03-01", client=_client(handler))
     )
     assert len(results) == 3
     assert results[0].rows == 24 and results[0].report is not None
     assert [r.skipped for r in results[1:]] == ["404", "404"]
 
-    stored = store.read(
-        "ohlcv", exchange="binance", symbol="BTCUSDT", start="2019-01-01", end="2019-02-01"
-    )
+    stored = store.read("ohlcv", exchange="binance", symbol="BTCUSDT", start="2019-01-01", end="2019-02-01")
     assert stored.height == 24
 
 
 def test_a_missing_month_is_skipped_not_fatal(store):
     results = asyncio.run(
         ingest_klines(
-            store, "BTCUSDT", "1h", "2019-01-01", "2019-01-31",
+            store,
+            "BTCUSDT",
+            "1h",
+            "2019-01-01",
+            "2019-01-31",
             client=_client(lambda _: httpx.Response(404)),
         )
     )
@@ -74,7 +74,11 @@ def test_a_server_error_propagates(store):
     with pytest.raises(httpx.HTTPStatusError):
         asyncio.run(
             ingest_klines(
-                store, "BTCUSDT", "1h", "2019-01-01", "2019-01-31",
+                store,
+                "BTCUSDT",
+                "1h",
+                "2019-01-01",
+                "2019-01-31",
                 client=_client(lambda _: httpx.Response(500)),
             )
         )
@@ -161,9 +165,7 @@ def test_collect_open_interest_writes_each_symbol(store):
             ],
         )
 
-    results = asyncio.run(
-        collect_open_interest(store, ["BTCUSDT", "ETHUSDT"], client=_client(handler))
-    )
+    results = asyncio.run(collect_open_interest(store, ["BTCUSDT", "ETHUSDT"], client=_client(handler)))
     assert [r.symbol for r in results] == ["BTCUSDT", "ETHUSDT"]
     assert all(r.rows == 1 for r in results)
 
@@ -246,8 +248,16 @@ def test_cli_ingest_reports_bar_counts(tmp_path, monkeypatch):
     _patch_transport(monkeypatch, lambda _: httpx.Response(200, content=_kline_zip()))
     result = runner.invoke(
         app,
-        ["ingest", "BTCUSDT", "--start", "2019-01-01", "--end", "2019-01-31",
-         "--config", _cli_config(tmp_path)],
+        [
+            "ingest",
+            "BTCUSDT",
+            "--start",
+            "2019-01-01",
+            "--end",
+            "2019-01-31",
+            "--config",
+            _cli_config(tmp_path),
+        ],
     )
     assert result.exit_code == 0
     assert "24 bars" in result.stdout
@@ -268,8 +278,16 @@ def test_cli_ingest_exits_nonzero_on_a_quality_failure(tmp_path, monkeypatch):
 
     result = runner.invoke(
         app,
-        ["ingest", "BTCUSDT", "--start", "2019-01-01", "--end", "2019-01-31",
-         "--config", _cli_config(tmp_path)],
+        [
+            "ingest",
+            "BTCUSDT",
+            "--start",
+            "2019-01-01",
+            "--end",
+            "2019-01-31",
+            "--config",
+            _cli_config(tmp_path),
+        ],
     )
     assert result.exit_code == 1
     assert "QUALITY FAIL" in result.stdout
@@ -285,9 +303,18 @@ def test_cli_ingest_funding(tmp_path, monkeypatch):
     )
     result = runner.invoke(
         app,
-        ["ingest-funding", "BTCUSDT", "--source", "rest",
-         "--start", "2019-01-01", "--end", "2019-01-05",
-         "--config", _cli_config(tmp_path)],
+        [
+            "ingest-funding",
+            "BTCUSDT",
+            "--source",
+            "rest",
+            "--start",
+            "2019-01-01",
+            "--end",
+            "2019-01-05",
+            "--config",
+            _cli_config(tmp_path),
+        ],
     )
     assert result.exit_code == 0 and "1 settlements" in result.stdout
 
@@ -302,9 +329,18 @@ def test_cli_ingest_funding_fails_on_a_cap_breach(tmp_path, monkeypatch):
     )
     result = runner.invoke(
         app,
-        ["ingest-funding", "BTCUSDT", "--source", "rest",
-         "--start", "2019-01-01", "--end", "2019-01-05",
-         "--config", _cli_config(tmp_path)],
+        [
+            "ingest-funding",
+            "BTCUSDT",
+            "--source",
+            "rest",
+            "--start",
+            "2019-01-01",
+            "--end",
+            "2019-01-05",
+            "--config",
+            _cli_config(tmp_path),
+        ],
     )
     assert result.exit_code == 1 and "funding_cap_breach" in result.stdout
 
@@ -338,16 +374,12 @@ def test_ingest_funding_archive_walks_months(store):
             zf.writestr(
                 "f.csv",
                 "calc_time,funding_interval_hours,last_funding_rate\n"
-                + "\n".join(
-                    f"{1_577_836_800_000 + i * 28_800_000},8,0.0001" for i in range(3)
-                ),
+                + "\n".join(f"{1_577_836_800_000 + i * 28_800_000},8,0.0001" for i in range(3)),
             )
         return httpx.Response(200, content=buffer.getvalue())
 
     results = asyncio.run(
-        ingest_funding_archive(
-            store, "BTCUSDT", "2020-01-01", "2020-03-31", client=_client(handler)
-        )
+        ingest_funding_archive(store, "BTCUSDT", "2020-01-01", "2020-03-31", client=_client(handler))
     )
     assert len(results) == 3
     assert all(r.interval == "8h" for r in results)
@@ -357,7 +389,10 @@ def test_ingest_funding_archive_walks_months(store):
 def test_ingest_funding_archive_skips_a_missing_month(store):
     results = asyncio.run(
         ingest_funding_archive(
-            store, "BTCUSDT", "2020-01-01", "2020-01-31",
+            store,
+            "BTCUSDT",
+            "2020-01-01",
+            "2020-01-31",
             client=_client(lambda _: httpx.Response(404)),
         )
     )
@@ -367,7 +402,6 @@ def test_ingest_funding_archive_skips_a_missing_month(store):
 def test_cli_ingest_funding_rejects_an_unknown_source(tmp_path):
     result = runner.invoke(
         app,
-        ["ingest-funding", "BTCUSDT", "--source", "carrier-pigeon",
-         "--config", _cli_config(tmp_path)],
+        ["ingest-funding", "BTCUSDT", "--source", "carrier-pigeon", "--config", _cli_config(tmp_path)],
     )
     assert result.exit_code == 2 and "unknown source" in result.stdout

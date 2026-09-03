@@ -130,9 +130,7 @@ class MomentumProbe(Signal):
     name = "momentum_probe"
     tier = 3
     required_features: ClassVar[list[FeatureSpec]] = [FeatureSpec("close", 96)]
-    param_space: ClassVar[dict[str, ParamRange]] = {
-        "lookback": ParamRange("lookback", (12, 24, 48, 96))
-    }
+    param_space: ClassVar[dict[str, ParamRange]] = {"lookback": ParamRange("lookback", (12, 24, 48, 96))}
 
     def generate(self, features: pl.DataFrame, params: dict[str, Any]) -> pl.DataFrame:
         lookback = int(params.get("lookback", 24))

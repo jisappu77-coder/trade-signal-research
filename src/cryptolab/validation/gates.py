@@ -116,9 +116,7 @@ def evaluate_gates(inputs: GateInputs) -> GateReport:
             dispersion_threshold,
             "walk-forward fold Sharpe stdev < 0.75 x mean fold Sharpe",
         ),
-        GateResult(
-            "max_drawdown", inputs.max_drawdown < 0.35, inputs.max_drawdown, 0.35, "peak-to-trough"
-        ),
+        GateResult("max_drawdown", inputs.max_drawdown < 0.35, inputs.max_drawdown, 0.35, "peak-to-trough"),
         GateResult(
             "breakeven_cost",
             inputs.breakeven_cost_bps > 2.0 * round_trip,

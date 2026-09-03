@@ -31,6 +31,4 @@ def oi_change(oi: str = "oi_quote", *, lookback_bars: int = 24, alias: str | Non
     Only usable where the daily collector has actually run — Binance retains ~30 days and history
     cannot be backfilled (§5.1).
     """
-    return ((pl.col(oi) / pl.col(oi).shift(lookback_bars)) - 1.0).alias(
-        alias or f"oi_change_{lookback_bars}"
-    )
+    return ((pl.col(oi) / pl.col(oi).shift(lookback_bars)) - 1.0).alias(alias or f"oi_change_{lookback_bars}")

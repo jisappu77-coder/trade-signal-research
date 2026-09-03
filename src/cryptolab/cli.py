@@ -82,9 +82,7 @@ def ingest_funding_cmd(
     base = BaseConfig.load(config)
     store = ParquetStore(base.data_root, base.splits)
     if source == "archive":
-        results = asyncio.run(
-            ingest_funding_archive(store, symbol, start, end, exchange=base.exchange)
-        )
+        results = asyncio.run(ingest_funding_archive(store, symbol, start, end, exchange=base.exchange))
     elif source == "rest":
         results = [asyncio.run(ingest_funding(store, symbol, start, end, exchange=base.exchange))]
     else:

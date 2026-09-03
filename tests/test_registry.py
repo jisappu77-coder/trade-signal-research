@@ -29,16 +29,12 @@ def test_trials_are_counted_per_symbol_not_per_universe(registry):
     """§8.1: 24 combinations on a two-asset universe is N=48."""
     grid = [{"L": lookback, "H": halflife} for lookback in (24, 48, 96, 168) for halflife in (36, 72, 144)]
     assert len(grid) == 12
-    registry.register_grid(
-        signal="tsmom", grid=grid, symbols=["BTCUSDT", "ETHUSDT"], period="train"
-    )
+    registry.register_grid(signal="tsmom", grid=grid, symbols=["BTCUSDT", "ETHUSDT"], period="train")
     assert registry.count() == 24
 
     # The full §8.1 space also varies the bar, giving 24 combinations and N=48.
     full = [dict(p, bar=bar) for p in grid for bar in ("1h", "4h")]
-    registry.register_grid(
-        signal="tsmom_full", grid=full, symbols=["BTCUSDT", "ETHUSDT"], period="train"
-    )
+    registry.register_grid(signal="tsmom_full", grid=full, symbols=["BTCUSDT", "ETHUSDT"], period="train")
     assert registry.count(signal="tsmom_full") == 48
 
 
@@ -50,9 +46,7 @@ def test_count_can_be_scoped_to_a_family(registry):
 
 
 def test_params_survive_a_round_trip(registry):
-    registry.register(
-        signal="tsmom", params={"L": 96, "sigma_target": 0.4}, symbol="BTCUSDT", period="train"
-    )
+    registry.register(signal="tsmom", params={"L": 96, "sigma_target": 0.4}, symbol="BTCUSDT", period="train")
     assert registry.all_trials()[0].params == {"L": 96, "sigma_target": 0.4}
 
 

@@ -43,9 +43,7 @@ def test_parse_klines_produces_the_canonical_schema():
 
 def test_parse_klines_normalises_microsecond_timestamps():
     """Binance switched some 2025+ archives to microseconds. Magnitude decides, not assumption."""
-    micro = ROW.replace("1546300800000", "1546300800000000").replace(
-        "1546304399999", "1546304399999000"
-    )
+    micro = ROW.replace("1546300800000", "1546300800000000").replace("1546304399999", "1546304399999000")
     df = binance_archive.parse_klines(_zip_of(micro), "test://")
     assert df["open_time"][0] == 1_546_300_800_000
 
@@ -109,9 +107,7 @@ def test_funding_interval_is_inferred_not_assumed():
 
 
 def test_inferring_an_interval_from_one_point_raises():
-    single = pl.DataFrame(
-        {"funding_time": [0], "symbol": ["B"], "funding_rate": [0.0], "mark_price": [1.0]}
-    )
+    single = pl.DataFrame({"funding_time": [0], "symbol": ["B"], "funding_rate": [0.0], "mark_price": [1.0]})
     with pytest.raises(ValueError, match="at least two settlements"):
         binance_api.infer_funding_interval_hours(single)
 

@@ -87,9 +87,7 @@ def test_capacity_breach_rejects_the_fill_by_default():
 def test_capacity_breach_can_be_made_fatal():
     thin = synthetic_bars(50, seed=1, quote_volume=1_000.0)
     with pytest.raises(CapacityBreachError):
-        run_backtest(
-            thin, constant_targets(thin, 1.0), BacktestConfig(on_capacity_breach="raise")
-        )
+        run_backtest(thin, constant_targets(thin, 1.0), BacktestConfig(on_capacity_breach="raise"))
 
 
 def test_a_deep_book_reports_no_breaches(bars):
@@ -146,9 +144,7 @@ def test_breakeven_cost_is_zero_without_a_gross_edge(bars):
 def test_breakeven_cost_is_positive_for_a_profitable_path():
     """A signal with a real gross edge reports the cost at which it dies."""
     rising = synthetic_bars(500, seed=3, drift=0.002, vol=0.004)
-    result = run_backtest(
-        rising, constant_targets(rising, 1.0), BacktestConfig(regime_name="optimistic")
-    )
+    result = run_backtest(rising, constant_targets(rising, 1.0), BacktestConfig(regime_name="optimistic"))
     assert result.breakeven_cost_bps() > 0
 
 
@@ -160,9 +156,7 @@ def test_risk_engine_can_force_a_flatten():
     than being 10% down.
     """
     falling = synthetic_bars(400, seed=4, drift=-0.02, vol=0.01)
-    risk = RiskEngine(
-        limits=RiskLimits(drawdown_limit=0.99, daily_loss_limit=0.99, leverage_tolerance=0.02)
-    )
+    risk = RiskEngine(limits=RiskLimits(drawdown_limit=0.99, daily_loss_limit=0.99, leverage_tolerance=0.02))
     result = run_backtest(
         falling,
         constant_targets(falling, 1.0),
@@ -179,9 +173,7 @@ def test_risk_engine_can_force_a_flatten():
 def test_unlevered_crash_trips_the_drawdown_limit_instead():
     """With no leverage to breach, the drawdown limit is the binding constraint."""
     falling = synthetic_bars(400, seed=4, drift=-0.02, vol=0.01)
-    risk = RiskEngine(
-        limits=RiskLimits(drawdown_limit=0.10, daily_loss_limit=0.99, max_gross_leverage=1.0)
-    )
+    risk = RiskEngine(limits=RiskLimits(drawdown_limit=0.10, daily_loss_limit=0.99, max_gross_leverage=1.0))
     run_backtest(
         falling,
         constant_targets(falling, 0.5),
@@ -223,7 +215,9 @@ def test_insolvency_ends_the_run():
     )
     risk = RiskEngine(
         limits=RiskLimits(
-            daily_loss_limit=1.0, drawdown_limit=1.0, max_gross_leverage=10**6,
+            daily_loss_limit=1.0,
+            drawdown_limit=1.0,
+            max_gross_leverage=10**6,
             max_consecutive_losses=10**9,
         )
     )
@@ -246,6 +240,13 @@ def test_summary_reports_every_header_field(bars):
     summary = run_backtest(
         bars, MomentumProbe().generate(bars, {"lookback": 24}), BacktestConfig(warmup_bars=100)
     ).summary()
-    for key in ("net_pnl", "sharpe_per_bar", "max_drawdown", "turnover_per_year",
-                "breakeven_cost_bps", "cost_drag_bps_per_year", "capacity_breaches"):
+    for key in (
+        "net_pnl",
+        "sharpe_per_bar",
+        "max_drawdown",
+        "turnover_per_year",
+        "breakeven_cost_bps",
+        "cost_drag_bps_per_year",
+        "capacity_breaches",
+    ):
         assert key in summary

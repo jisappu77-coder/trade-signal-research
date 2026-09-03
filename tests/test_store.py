@@ -29,9 +29,7 @@ def test_round_trip_read(store, bars, train_ms):
 
 def test_read_filters_to_window(store, bars):
     store.write(bars, "ohlcv", exchange="binance", symbol="BTCUSDT", source_uri="test://")
-    got = store.read(
-        "ohlcv", exchange="binance", symbol="BTCUSDT", start="2019-01-01", end="2019-01-02"
-    )
+    got = store.read("ohlcv", exchange="binance", symbol="BTCUSDT", start="2019-01-01", end="2019-01-02")
     assert 0 < got.height < bars.height
 
 
@@ -68,8 +66,12 @@ def test_forged_token_is_refused(tmp_path, splits):
     forged = TestPeriodToken("tsmom", "deadbeef", "0" * 64)
     with pytest.raises(SealedPeriodError, match="invalid, already spent"):
         store.read(
-            "ohlcv", exchange="binance", symbol="BTCUSDT",
-            start="2024-07-01", end="2024-08-01", token=forged,
+            "ohlcv",
+            exchange="binance",
+            symbol="BTCUSDT",
+            start="2024-07-01",
+            end="2024-08-01",
+            token=forged,
         )
     registry.close()
 
@@ -82,16 +84,24 @@ def test_valid_token_opens_the_seal_exactly_once(tmp_path, splits, bars):
 
     token = registry.issue_test_token("tsmom")
     got = store.read(
-        "ohlcv", exchange="binance", symbol="BTCUSDT",
-        start="2024-07-01", end="2024-12-31", token=token,
+        "ohlcv",
+        exchange="binance",
+        symbol="BTCUSDT",
+        start="2024-07-01",
+        end="2024-12-31",
+        token=token,
     )
     assert got.height > 0
 
     # The same token is now spent.
     with pytest.raises(SealedPeriodError, match="already spent"):
         store.read(
-            "ohlcv", exchange="binance", symbol="BTCUSDT",
-            start="2024-07-01", end="2024-12-31", token=token,
+            "ohlcv",
+            exchange="binance",
+            symbol="BTCUSDT",
+            start="2024-07-01",
+            end="2024-12-31",
+            token=token,
         )
     registry.close()
 
@@ -111,8 +121,12 @@ def test_token_from_another_registry_is_refused(tmp_path, splits):
     token = issuer.issue_test_token("tsmom")
     with pytest.raises(SealedPeriodError):
         store.read(
-            "ohlcv", exchange="binance", symbol="BTCUSDT",
-            start="2024-07-01", end="2024-08-01", token=token,
+            "ohlcv",
+            exchange="binance",
+            symbol="BTCUSDT",
+            start="2024-07-01",
+            end="2024-08-01",
+            token=token,
         )
     issuer.close()
     other.close()
@@ -124,8 +138,12 @@ def test_unbound_store_refuses_even_a_real_token(tmp_path, splits):
     token = registry.issue_test_token("tsmom")
     with pytest.raises(SealedPeriodError, match="no verifier bound"):
         store.read(
-            "ohlcv", exchange="binance", symbol="BTCUSDT",
-            start="2024-07-01", end="2024-08-01", token=token,
+            "ohlcv",
+            exchange="binance",
+            symbol="BTCUSDT",
+            start="2024-07-01",
+            end="2024-08-01",
+            token=token,
         )
     registry.close()
 

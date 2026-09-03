@@ -1,4 +1,6 @@
-data/
+# Anchored: an unanchored `data/` also matches src/cryptolab/data/, and ruff honours
+# gitignore — which silently excluded the entire data layer from linting.
+/data/
 .venv/
 __pycache__/
 *.pyc
@@ -7,6 +9,6 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
-reports/
+/reports/
 *.sqlite
 *.sqlite-journal

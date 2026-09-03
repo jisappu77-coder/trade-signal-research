@@ -128,7 +128,16 @@ def test_header_contains_every_mandatory_field():
         cost_drag_bps=451,
         report=report,
     )
-    for field in ("STRATEGY", "TRIALS N", "NET SHARPE", "DEFLATED SHARPE", "PBO", "BREAKEVEN",
-                  "TURNOVER", "COST DRAG", "VERDICT"):
+    for field in (
+        "STRATEGY",
+        "TRIALS N",
+        "NET SHARPE",
+        "DEFLATED SHARPE",
+        "PBO",
+        "BREAKEVEN",
+        "TURNOVER",
+        "COST DRAG",
+        "VERDICT",
+    ):
         assert field in header
     assert "48" in header and "conservative" in header

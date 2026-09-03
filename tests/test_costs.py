@@ -86,9 +86,9 @@ def test_total_cost_is_non_decreasing_across_regimes():
 
 def test_funding_sign_convention():
     regime = get_regime("optimistic")
-    assert funding_payment(10_000, 0.0001, regime) == pytest.approx(-1.0)   # long pays
-    assert funding_payment(-10_000, 0.0001, regime) == pytest.approx(1.0)   # short receives
-    assert funding_payment(10_000, -0.0001, regime) == pytest.approx(1.0)   # long receives
+    assert funding_payment(10_000, 0.0001, regime) == pytest.approx(-1.0)  # long pays
+    assert funding_payment(-10_000, 0.0001, regime) == pytest.approx(1.0)  # short receives
+    assert funding_payment(10_000, -0.0001, regime) == pytest.approx(1.0)  # long receives
 
 
 def test_funding_extreme_matches_the_spec_worked_example():
