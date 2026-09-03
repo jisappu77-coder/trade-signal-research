@@ -12,14 +12,28 @@ Its output is a **verdict** on whether an edge exists — not a P&L, and not a t
 | 1 | Data layer: ingest, store, quality gate | done |
 | 2 | Cost model + backtest engine | done |
 | 3 | Validation harness | done |
-| 4 | TSMOM | not started |
+| 4 | TSMOM | **done** — verdict: no configuration passed |
 | 5 | REGIME overlay | not started |
 | 6 | CARRY | not started |
 | 7 | Reporting + comparison index | **done** — static site, see below |
 
-**No Tier-1 signal exists yet, and that is deliberate.** SPEC.md §15 requires the validation harness
-to be green before the first signal is written. The CLI has no `run-strategy` command for the same
-reason.
+## Phase 4 verdict: TSMOM did not pass
+
+`cryptolab run-tsmom` runs the §8.1 grid — 24 declared combinations across two symbols, N = 48 from
+the registry — and publishes a verdict per configuration. The result over 2020-01 → 2024-06:
+
+**0 validated, 5 candidates, 43 killed.** Full record in
+[`docs/phase-4-tsmom.md`](docs/phase-4-tsmom.md).
+
+The best configuration (`TSMOM_L168_H72_4h_BTCUSDT`) clears four gates including an out-of-sample
+Sharpe of 1.29 and a break-even cost of 104 bps against a 15 bps round-trip. It fails on the
+**parameter plateau at 0.06** — only 6% of the grid sits within 25% of the peak. A real edge
+produces a region; this produces a spike. Costs are not what kills TSMOM here. Robustness is.
+
+The bar-size split is decisive: the 1h arm's *best* of 24 configurations scores −0.14 out of sample
+with a median of −0.73 and zero candidates, while every survivor is a 4h run. That was
+[predicted in advance](docs/horizon-analysis.md) from cost arithmetic alone, before TSMOM was
+written.
 
 ## Quickstart
 

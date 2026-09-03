@@ -136,6 +136,41 @@ def registry_status(
             raise typer.Exit(code=1)
 
 
+@app.command("run-tsmom")
+def run_tsmom(
+    out: Annotated[Path, typer.Option(help="Directory to write the static site into")] = Path("site"),
+    start: Annotated[str, typer.Option()] = "2020-01-01",
+    end: Annotated[str, typer.Option()] = "2024-06-30",
+    bars: Annotated[str, typer.Option(help="Comma-separated bar sizes, e.g. '4h' or '1h,4h'")] = "1h,4h",
+    config: Annotated[Path, typer.Option()] = Path("config/base.yaml"),
+) -> None:
+    """Run the TSMOM grid (§8.1) and publish its verdict.
+
+    Registers the full declared search space before computing anything, so N comes from the
+    registry. Never opens the sealed test period.
+    """
+    from cryptolab.data.store import ParquetStore
+    from cryptolab.reporting.tsmom_run import write_tsmom_site
+    from cryptolab.validation.registry import TrialRegistry
+
+    base = BaseConfig.load(config)
+    with TrialRegistry(base.registry_path) as registry:
+        store = registry.bind_store(ParquetStore(base.data_root, base.splits))
+        paths = write_tsmom_site(
+            store,
+            registry,
+            out,
+            symbols=base.universe,
+            start=start,
+            end=end,
+            exchange=base.exchange,
+            bars_filter=[b.strip() for b in bars.split(",") if b.strip()],
+        )
+        typer.echo(f"trials N   {registry.count(signal='tsmom')}")
+    typer.echo(f"wrote {len(paths)} files to {out}/")
+    typer.secho(f"open {paths[0]}", fg=typer.colors.GREEN)
+
+
 @app.command("report")
 def report(
     out: Annotated[Path, typer.Option(help="Directory to write the static site into")] = Path("site"),
@@ -145,8 +180,8 @@ def report(
 ) -> None:
     """Build the static HTML report site (§12): one report per run, plus the comparison index.
 
-    Until Phase 4 lands there is no Tier-1 strategy to report on, so this renders the Phase 1-3
-    harness validation over real data. Every run it produces is labelled Tier 3, not promotable.
+    This renders the Phase 1-3 harness validation over real data; every run it produces is
+    labelled Tier 3 and not promotable. For the Tier-1 TSMOM verdict use `run-tsmom`.
     """
     from cryptolab.data.store import ParquetStore
     from cryptolab.reporting.harness import build_harness_site

@@ -17,6 +17,12 @@ def splits() -> SplitProtocol:
     return SplitProtocol.from_config(SPLITS_YAML)
 
 
+@pytest.fixture(scope="module")
+def module_splits() -> SplitProtocol:
+    """Module-scoped twin, for fixtures whose setup is too expensive to repeat per test."""
+    return SplitProtocol.from_config(SPLITS_YAML)
+
+
 @pytest.fixture
 def store(tmp_path, splits) -> ParquetStore:
     return ParquetStore(tmp_path / "data", splits)
