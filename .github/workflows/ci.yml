@@ -16,26 +16,30 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.11"
-          enable-cache: true # Ensures lightning-fast subsequent runs
+          enable-cache: true 
 
+      # Fix: Added '--with ruff' to ensure the binary exists
       - name: Run ruff linter
-        run: uv run ruff check src/ tests/
+        run: uv run --with ruff ruff check src/ tests/
 
+      # Fix: Added '--with mypy' to ensure the binary exists
       - name: Run mypy type checker
-        run: uv run mypy
+        run: uv run --with mypy mypy
 
       # The §14.2 anti-lookahead suite runs on every signal, on every push.
+      # Fix: Added '--with pytest' if it is not explicitly in your pyproject [dev] dependencies
       - name: anti-lookahead tests (SPEC.md §14.2)
-        run: uv run pytest tests/test_antilookahead.py -v
+        run: uv run --with pytest pytest tests/test_antilookahead.py -v
 
+      # Fix: Added '--with pytest,pytest-cov' for reporting features
       - name: full suite with coverage gates (SPEC.md §14.1)
         run: |
-          uv run pytest tests/ \
+          uv run --with pytest --with pytest-cov pytest tests/ \
             --cov=cryptolab --cov-report=term-missing \
             --cov-fail-under=70
 
       - name: coverage gate for backtest/ and validation/ (>=90%)
         run: |
-          uv run pytest tests/ -q \
+          uv run --with pytest --with pytest-cov pytest tests/ -q \
             --cov=cryptolab.backtest --cov=cryptolab.validation \
             --cov-report=term --cov-fail-under=90
