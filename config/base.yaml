@@ -1,0 +1,14 @@
+# Universe, paths and the §10.1 split protocol.
+universe: [BTCUSDT, ETHUSDT]
+exchange: binance
+bars: [1h, 4h]
+data_root: data
+registry_path: data/registry.sqlite
+report_root: reports
+
+# §10.1 split protocol. The train window alone is four years — ingestion must cover
+# from `train.start`, not merely "the last 3 years".
+splits:
+  train:      {start: "2019-01-01", end: "2022-12-31"}   # free exploration
+  validation: {start: "2023-01-01", end: "2024-06-30"}   # limited, logged access
+  test:       {start: "2024-07-01", end: null}           # SEALED — one touch, ever

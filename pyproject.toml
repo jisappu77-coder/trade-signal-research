@@ -1,0 +1,88 @@
+[project]
+name = "cryptolab"
+version = "0.1.0"
+description = "Evidence-gated research and backtesting platform for intraday crypto perpetual futures"
+requires-python = ">=3.11"
+dependencies = [
+    "polars>=1.0",
+    "pyarrow>=16",
+    "duckdb>=1.0",
+    "numpy>=1.26",
+    "scipy>=1.13",
+    "statsmodels>=0.14",
+    "httpx>=0.27",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "pyyaml>=6.0",
+    "jinja2>=3.1",
+    "matplotlib>=3.8",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML",
+]
+
+[dependency-groups]
+# `uv sync --dev` (used by CI) resolves this group. The optional-dependencies entry above is
+# kept so `pip install -e ".[dev]"` still works for anyone not using uv.
+dev = [
+    "pytest>=8.2",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML",
+]
+
+[project.scripts]
+cryptolab = "cryptolab.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cryptolab"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF", "ANN", "PL"]
+ignore = [
+    "ANN401",
+    "PLR0913",
+    "PLR2004",
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN", "PLR0915", "RUF012", "B017"]
+"src/cryptolab/cli.py" = ["PLC0415"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src"]
+explicit_package_bases = true
+mypy_path = ["src"]
+plugins = []
+
+[[tool.mypy.overrides]]
+module = ["scipy.*", "statsmodels.*", "matplotlib.*", "duckdb.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["error::DeprecationWarning"]

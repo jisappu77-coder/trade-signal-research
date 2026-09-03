@@ -1,0 +1,31 @@
+# §7 — the fixed adversary. These four regimes are NOT tunable. Lowering a fee to
+# make a result look better is a protocol violation (CLAUDE.md non-negotiable #3).
+# `conservative` is always the headline regime.
+impact_k: 10.0
+max_participation: 0.01        # reject fills above 1% of bar quote volume (capacity breach)
+
+regimes:
+  optimistic:
+    taker_fee_bps: 2.0
+    maker_fee_bps: 0.0
+    slippage_bps: 0.0
+    impact_multiplier: 0.0
+    funding_multiplier: 1.0
+  expected:
+    taker_fee_bps: 5.0
+    maker_fee_bps: 2.0
+    slippage_bps: 1.0
+    impact_multiplier: 0.0
+    funding_multiplier: 1.0
+  conservative:
+    taker_fee_bps: 5.5
+    maker_fee_bps: 2.0
+    slippage_bps: 2.0
+    impact_multiplier: 1.0
+    funding_multiplier: 1.25
+  stressed:
+    taker_fee_bps: 7.5
+    maker_fee_bps: 3.0
+    slippage_bps: 5.0
+    impact_multiplier: 2.0
+    funding_multiplier: 2.0

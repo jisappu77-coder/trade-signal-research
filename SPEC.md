@@ -39,7 +39,9 @@ produces a repeatable edge that survives realistic fees, slippage, funding, and 
 - Any UI beyond static HTML reports
 
 ### Definition of done for v1
-The system can ingest ≥3 years of BTC and ETH perp data, run a walk-forward validation of the three Tier-1
+The system can ingest BTC and ETH perp data covering the full split protocol in §10.1 (from 2019-01-01 to
+present — do not treat "3 years" as sufficient; the train window alone is four years), run a walk-forward
+validation of the three Tier-1
 signal families under four cost regimes, and emit a report stating for each signal: net Sharpe, deflated
 Sharpe, max drawdown, turnover, break-even cost in bps, and a PASS/FAIL against the promotion gates in §11.
 
@@ -104,6 +106,7 @@ cryptolab/
 │   ├── costs.yaml                 # the four cost regimes (§7)
 │   └── strategies/
 │       ├── tsmom.yaml
+│       ├── regime.yaml
 │       └── carry.yaml
 ├── src/cryptolab/
 │   ├── data/
@@ -150,7 +153,7 @@ cryptolab/
 |---------|--------|---------------------|
 | OHLCV klines (1m, 5m, 1h) | `data.binance.vision` monthly ZIPs | Free, complete, use this — **not** the REST API for bulk |
 | Funding rate history | Binance futures REST `/fapi/v1/fundingRate` | Paginate by `startTime`; 8h cadence; some symbols moved to 4h |
-| **Open interest history** | Binance `/futures/data/openInterestHist` | **Only ~30 days of history is retrievable.** OI history cannot be backfilled. A daily collector must run from day one or H4/H9 are untestable. Flag this loudly at init. |
+| **Open interest history** | Binance `/futures/data/openInterestHist` | **Only ~30 days of history is retrievable.** OI history cannot be backfilled. A daily collector must run from day one or any OI-derived hypothesis is permanently untestable on historical data. Flag this loudly at init. |
 | Liquidations | Binance `!forceOrder@arr` websocket | Not backfillable either; and the public feed is throttled/partial — treat any liquidation series as lower-confidence |
 | Mark / index price | Binance archive `markPriceKlines` | Needed to compute basis correctly; do **not** use last-traded price for basis |
 
@@ -260,8 +263,14 @@ target_t    = signal_t * clip(sigma_target / sigma_t, 0, max_lev)
 Defaults: `sigma_target = 0.40` annualised, `max_lev = 2.0`, `L = 96`, `H = 72`.
 
 Required variants to test (this is the *entire* declared parameter space — do not expand it without
-registering the expansion): `L ∈ {24, 48, 96, 168}`, `H ∈ {36, 72, 144}`, bar ∈ {1h, 4h}. That is 24 trials
-per asset. Register all 24 even if you only report one.
+registering the expansion): `L ∈ {24, 48, 96, 168}`, `H ∈ {36, 72, 144}`, bar ∈ {1h, 4h}. That is 24 parameter
+combinations. Register all 24 even if you only report one.
+
+**Definition of `N`**: a trial is one `(signal, params, symbol, period)` tuple — **per symbol, not per
+universe**. The 24 parameter combinations evaluated on `[BTCUSDT, ETHUSDT]` are therefore **48 trials**, and the
+deflated Sharpe of *any one* of them is deflated by `N = 48`. Searching a second asset is a second search and
+costs statistical power accordingly. `N` is always read from the registry (§10.4) at report time, never
+hard-coded — the registry is the sole arbiter of this count.
 
 Known caveat to encode as a test: momentum is concentrated in winners and **losers frequently rebound**
 (Han, Kang & Ryu). Report long-leg and short-leg attribution separately. If the short leg has negative
@@ -360,9 +369,14 @@ where `N` = number of trials from the registry, `T` = number of return observati
 kurtosis of the return series. Report DSR alongside every Sharpe. **A Sharpe reported without its DSR is a
 bug.**
 
+**Units**: `SR_hat`, `SR0` and `stdev(SR_trials)` must all be expressed at the **same (non-annualised) return
+frequency** as the `T` observations. Annualising one side and not the other silently inflates DSR. The
+implementation takes per-observation Sharpes only, and annualisation happens exclusively at the reporting
+boundary.
+
 ### 10.4 Trial registry
-An append-only SQLite table. Every `generate()` call with a distinct `(signal, params, universe, period)`
-tuple inserts a row before results are computed. `N` in the DSR formula reads from this table. Deleting rows
+An append-only SQLite table. Every `generate()` call with a distinct `(signal, params, symbol, period)`
+tuple inserts a row before results are computed (per §8.1, trials are counted per symbol). `N` in the DSR formula reads from this table. Deleting rows
 is a protocol violation; the table is hash-chained so tampering is detectable.
 
 ### 10.5 Probability of backtest overfitting
@@ -398,7 +412,7 @@ One HTML report per strategy run, plus a comparison index. Required header block
 
 ```
 STRATEGY   TSMOM_L96_H72_1h              PERIOD  2024-07-01 → 2026-08-01  (OOS, sealed)
-TRIALS N   24                            COSTS   conservative (5.5bps taker)
+TRIALS N   48                            COSTS   conservative (5.5bps taker)
 NET SHARPE 0.84    DEFLATED SHARPE 0.31  PBO     0.41
 BREAKEVEN  6.2 bps round-trip            TURNOVER 41x/yr   COST DRAG 451 bps/yr
 VERDICT    FAIL — deflated Sharpe below gate; edge does not clear cost hurdle
@@ -432,7 +446,12 @@ interface must be exercised in backtest so it is proven before any live wiring.
    be bit-identical to the vectorised path. Any divergence is a lookahead bug.
 2. **Shuffle test**: on randomly shuffled returns, every strategy must produce Sharpe indistinguishable from
    zero. A strategy that profits on shuffled data has lookahead.
-3. **Cost monotonicity**: net Sharpe must be non-increasing as the cost regime worsens.
+3. **Cost monotonicity**: net Sharpe must be non-increasing as the cost regime worsens — asserted over the
+   *fee and slippage* components only. Funding is **exempt**: the regimes scale funding magnitude (§7), and a
+   funding-receiving position (any short perp, and all of CARRY) becomes *more* profitable as that multiplier
+   rises. Asserting monotonicity over total P&L would fail correct code. The engine therefore decomposes P&L
+   into `gross`, `fees`, `slippage` and `funding`, and the test asserts monotonicity of
+   `gross - fees - slippage` while separately asserting that `fees + slippage` is non-decreasing.
 4. **Zero-signal test**: a signal returning constant 0 must produce exactly zero P&L and zero cost.
 5. **Funding sign test**: a long position through a positive funding settlement must lose exactly
    `notional × funding_rate`.
