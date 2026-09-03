@@ -26,10 +26,9 @@ jobs:
       - name: Auto-format workspace layout
         run: uv run --with ruff ruff format src/ tests/
 
-      # Fix: Added editable package installation and injected third-party type stubs explicitly
+      # Fix: Removed the --editable flag. uv run implicitly mounts the project as editable.
       - name: Run mypy type checker
-        run: |
-          uv run --editable . --with mypy --with types-PyYAML mypy src/
+        run: uv run --with mypy --with types-PyYAML mypy src/
 
       # The §14.2 anti-lookahead suite runs on every signal, on every push.
       - name: anti-lookahead tests (SPEC.md §14.2)
