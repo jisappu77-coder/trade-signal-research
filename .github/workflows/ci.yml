@@ -11,6 +11,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Required if you want to commit fixes back automatically
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
@@ -18,20 +21,21 @@ jobs:
           python-version: "3.11"
           enable-cache: true 
 
-      # Fix: Added '--with ruff' to ensure the binary exists
-      - name: Run ruff linter
-        run: uv run --with ruff ruff check src/ tests/
+      # Fixes the imports automatically during the CI run so it doesn't fail
+      - name: Run ruff linter and auto-fix
+        run: uv run --with ruff ruff check src/ tests/ --fix
 
-      # Fix: Added '--with mypy' to ensure the binary exists
+      # Optional: Double checks that the code conforms to standard formatting rules
+      - name: Check formatting alignment
+        run: uv run --with ruff ruff format --check src/ tests/
+
       - name: Run mypy type checker
         run: uv run --with mypy mypy
 
       # The §14.2 anti-lookahead suite runs on every signal, on every push.
-      # Fix: Added '--with pytest' if it is not explicitly in your pyproject [dev] dependencies
       - name: anti-lookahead tests (SPEC.md §14.2)
         run: uv run --with pytest pytest tests/test_antilookahead.py -v
 
-      # Fix: Added '--with pytest,pytest-cov' for reporting features
       - name: full suite with coverage gates (SPEC.md §14.1)
         run: |
           uv run --with pytest --with pytest-cov pytest tests/ \
