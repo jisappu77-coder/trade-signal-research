@@ -162,12 +162,32 @@ def parse_funding(raw: bytes, symbol: str, source_uri: str) -> pl.DataFrame:
             _normalise_time(pl.col("calc_time")).alias("funding_time"),
             pl.lit(symbol, dtype=pl.Utf8).alias("symbol"),
             pl.col("last_funding_rate").alias("funding_rate"),
+            pl.col("funding_interval_hours").alias("interval_hours"),
             pl.lit(None, dtype=pl.Float64).alias("mark_price"),
         )
         .unique(subset="funding_time", keep="first")
         .sort("funding_time")
     )
     return schemas.validate(out, "funding")
+
+
+def funding_intervals(raw: bytes, source_uri: str) -> list[float]:
+    """Every funding interval the month declares, in order.
+
+    More than one is a contract spec change *within* the month. `funding_interval_hours` refuses
+    that case because a single scalar cannot describe it; this returns the set instead, so an
+    ingest can record the change and carry the per-settlement interval rather than dropping the
+    symbol. Dropping it is not neutral: a venue shortens its funding interval when funding runs
+    extreme, so refusing those months deletes the highest-paying episodes from every result.
+    """
+    csv_bytes = _read_single_csv(raw, source_uri)
+    df = pl.read_csv(
+        csv_bytes,
+        has_header=b"calc_time" in csv_bytes.split(b"\n", 1)[0],
+        new_columns=["calc_time", "funding_interval_hours", "last_funding_rate"],
+        schema_overrides={"funding_interval_hours": pl.Float64},
+    )
+    return sorted(float(v) for v in df["funding_interval_hours"].unique().to_list())
 
 
 def funding_interval_hours(raw: bytes, source_uri: str) -> float:

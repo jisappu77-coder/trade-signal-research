@@ -35,7 +35,13 @@ from typing import Literal
 import numpy as np
 import polars as pl
 
-from cryptolab.backtest.costs import BPS, CostRegime, get_regime
+from cryptolab.backtest.costs import (
+    BPS,
+    DEFAULT_IMPACT_K,
+    MAX_PARTICIPATION,
+    CostRegime,
+    get_regime,
+)
 
 # Fraction of the perp notional posted as margin. A breach of this distance is a liquidation.
 # This models **isolated** margin with no top-up: the conservative reading, and the one a retail
@@ -48,6 +54,12 @@ DEFAULT_MARGIN_RATE = 0.20
 LIQUIDATION_FEE_BPS = 50.0
 # §8.3's empirical prior: about 40% of attractive-looking opportunities survive.
 SURVIVAL_PRIOR = 0.40
+HOURS_PER_YEAR = 8760.0
+# Only used where the venue never stated a cadence at all; never as a blanket assumption.
+DEFAULT_FUNDING_INTERVAL_HOURS = 8.0
+# A ceiling on the modelled cost of one leg. Beyond this the market is not carryable at any size,
+# and the bar is refused for entry anyway; the cap only stops a dead bar dominating a forced exit.
+MAX_LEG_COST_BPS = 500.0
 
 ExitReason = Literal["signal", "liquidation", "end_of_data"]
 
@@ -169,6 +181,7 @@ def align_legs(perp: pl.DataFrame, spot: pl.DataFrame, funding: pl.DataFrame) ->
                 pl.col("open_time"),
                 pl.col("open").alias("spot_open"),
                 pl.col("close").alias("spot_close"),
+                pl.col("quote_volume").alias("spot_quote_volume"),
             ),
             on="open_time",
             how="inner",
@@ -177,18 +190,84 @@ def align_legs(perp: pl.DataFrame, spot: pl.DataFrame, funding: pl.DataFrame) ->
     )
     dropped = perp.height - joined.height
 
+    has_interval = "interval_hours" in funding.columns
     settlements = funding.sort("funding_time").select(
         pl.col("funding_time").alias("open_time"),
         pl.col("funding_rate"),
+        (pl.col("interval_hours") if has_interval else pl.lit(None, dtype=pl.Float64)).alias(
+            "interval_hours"
+        ),
     )
     with_funding = (
         joined.join(settlements, on="open_time", how="left")
         # The rate in force on a bar is the last one settled — what a trader would actually see.
         .with_columns(pl.col("funding_rate").forward_fill().fill_null(0.0).alias("funding_in_force"))
         .with_columns(pl.col("funding_rate").alias("settlement_rate"))
-        .drop("funding_rate")
+        # The cadence in force likewise. Defaulting to 8h only where the venue never stated one;
+        # a symbol that moved to 4h pays twice as often, and annualising it at 8h would halve it.
+        .with_columns(
+            pl.col("interval_hours")
+            .forward_fill()
+            .backward_fill()
+            .fill_null(DEFAULT_FUNDING_INTERVAL_HOURS)
+            .alias("interval_in_force")
+        )
+        .drop("funding_rate", "interval_hours")
     )
     return with_funding, dropped
+
+
+def funding_apr(frame: pl.DataFrame) -> np.ndarray:
+    """Annualise the rate in force at each bar using the cadence in force at that bar.
+
+    §5.1's warning made concrete: a hard-coded `rate * 1095` is only right while the symbol settles
+    every 8 hours, and venues shorten the interval precisely when funding runs extreme.
+    """
+    interval = (
+        frame["interval_in_force"].to_numpy()
+        if "interval_in_force" in frame.columns
+        else np.full(frame.height, DEFAULT_FUNDING_INTERVAL_HOURS)
+    )
+    safe = np.where(interval > 0, interval, DEFAULT_FUNDING_INTERVAL_HOURS)
+    return frame["funding_in_force"].to_numpy() * (HOURS_PER_YEAR / safe)
+
+
+def _leg_costs(
+    notional: float,
+    perp_quote_volume: np.ndarray,
+    spot_quote_volume: np.ndarray,
+    regime: CostRegime,
+    *,
+    half_spread_bps: float,
+    max_participation: float = MAX_PARTICIPATION,
+    impact_k: float = DEFAULT_IMPACT_K,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Per-bar cost of one leg, and whether an entry is permitted on that bar.
+
+    Returns `(cost_per_leg, entry_allowed)`. The cost is the mean of the two legs' fill costs, since
+    every action here trades both; `entry_allowed` is false where either leg would breach §7's
+    participation limit, which is how a market too thin for the slot size excludes itself instead of
+    being priced as though it were deep.
+
+    This is the vectorised form of `costs.fill_cost` — identical arithmetic, asserted against it in
+    the tests — because a Python-level call per bar per symbol is 7.5 million calls across the
+    universe run, which CLAUDE.md's "no `.apply()` in hot paths" rule is about.
+    """
+    fixed_bps = regime.taker_fee_bps + regime.slippage_bps + half_spread_bps
+
+    def one_leg(volume: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        positive = volume > 0
+        # Participation against a zero-volume bar is infinite, so such bars are never entry-allowed.
+        participation = np.where(positive, notional / np.where(positive, volume, 1.0), np.inf)
+        impact = regime.impact_multiplier * impact_k * np.sqrt(np.maximum(participation, 0.0))
+        return notional * (fixed_bps + impact) * BPS, participation <= max_participation
+
+    perp_cost, perp_ok = one_leg(perp_quote_volume)
+    spot_cost, spot_ok = one_leg(spot_quote_volume)
+    # A bar with no volume at all has unbounded modelled impact; cap the *charge* so one dead bar
+    # cannot swamp an episode, while still refusing entry there.
+    cost = np.minimum((perp_cost + spot_cost) / 2.0, notional * MAX_LEG_COST_BPS * BPS)
+    return cost, perp_ok & spot_ok
 
 
 def run_carry_backtest(  # noqa: PLR0915 — the loop mirrors one episode's lifecycle end to end;
@@ -223,15 +302,25 @@ def run_carry_backtest(  # noqa: PLR0915 — the loop mirrors one episode's life
     spot_open = frame["spot_open"].to_numpy()
     spot_close = frame["spot_close"].to_numpy()
     settlement = frame["settlement_rate"].to_numpy()
-    in_force = frame["funding_in_force"].to_numpy()
+    apr_series = funding_apr(frame)
     deployed = frame["deployed"].to_numpy()
 
     # Capital funds the spot leg plus margin on the short perp, so the deployable notional per leg
     # is less than the account. This is the capital efficiency carry actually gets.
     notional = initial_equity / (1.0 + margin_rate)
-    one_way_bps = regime.taker_fee_bps + regime.slippage_bps + half_spread_bps
-    leg_cost = notional * one_way_bps * BPS
     liquidation_penalty = notional * LIQUIDATION_FEE_BPS * BPS
+
+    # Per-bar cost of filling one leg, sized against that bar's own quote volume via §7's
+    # square-root impact term. A flat figure would be a quiet subsidy to thin markets — precisely
+    # the markets where funding is highest — so the sleeve would appear to find its best
+    # opportunities exactly where its costs were least modelled.
+    perp_volume = frame["perp_quote_volume"].to_numpy()
+    spot_volume = (
+        frame["spot_quote_volume"].to_numpy() if "spot_quote_volume" in frame.columns else perp_volume
+    )
+    leg_cost_bar, entry_allowed = _leg_costs(
+        notional, perp_volume, spot_volume, regime, half_spread_bps=half_spread_bps
+    )
 
     episodes: list[CarryEpisode] = []
     equity = initial_equity
@@ -272,7 +361,8 @@ def run_carry_backtest(  # noqa: PLR0915 — the loop mirrors one episode's life
         if have and (not want or liquidated):
             assert open_episode is not None
             penalty = liquidation_penalty if liquidated else 0.0
-            equity -= leg_cost * 2 + penalty  # unwind both legs, plus any forced-close cost
+            exit_cost = leg_cost_bar[i] * 2
+            equity -= exit_cost + penalty  # unwind both legs, plus any forced-close cost
             episodes.append(
                 CarryEpisode(
                     entry_time=int(open_episode["entry_time"]),
@@ -282,25 +372,32 @@ def run_carry_backtest(  # noqa: PLR0915 — the loop mirrors one episode's life
                     entry_funding_apr=float(open_episode["entry_apr"]),
                     funding_collected=float(open_episode["funding"]),
                     basis_pnl=float(open_episode["basis"]),
-                    entry_cost=leg_cost * 2,
-                    exit_cost=leg_cost * 2 + penalty,
+                    entry_cost=float(open_episode["entry_cost"]),
+                    exit_cost=exit_cost + penalty,
                     net_pnl=float(open_episode["funding"])
                     + float(open_episode["basis"])
-                    - leg_cost * 4
+                    - float(open_episode["entry_cost"])
+                    - exit_cost
                     - penalty,
                     exit_reason="liquidation" if liquidated else "signal",
                     min_liquidation_distance=float(open_episode["min_distance"]),
                 )
             )
             open_episode = None
-        elif want and not have:
-            equity -= leg_cost * 2  # buy spot and short perp
+        elif want and not have and entry_allowed[i]:
+            # An entry the book cannot absorb is refused outright: §7's participation limit is a
+            # capacity constraint, not a cost to be paid. An *exit* is never refused — the position
+            # already exists and unwinding it is risk-reducing, the same precedent the directional
+            # engine sets in `_apply_capacity_limit`.
+            entry_cost = leg_cost_bar[i] * 2
+            equity -= entry_cost  # buy spot and short perp
             open_episode = {
+                "entry_cost": entry_cost,
                 "entry_time": int(times[i]),
                 "entry_index": i,
                 "entry_perp": float(perp_open[i]),
                 "entry_spot": float(spot_open[i]),
-                "entry_apr": float(in_force[i]) * (8760.0 / 8.0),
+                "entry_apr": float(apr_series[i]),
                 "funding": 0.0,
                 "basis": 0.0,
                 "min_distance": margin_rate,
@@ -313,13 +410,14 @@ def run_carry_backtest(  # noqa: PLR0915 — the loop mirrors one episode's life
                 "deployed": 1.0 if open_episode is not None else 0.0,
                 "funding_flow": funding_flow,
                 "basis_pnl": basis_step,
-                "funding_apr": float(in_force[i]) * (8760.0 / 8.0),
+                "funding_apr": float(apr_series[i]),
             }
         )
 
     if open_episode is not None:
         assert open_episode is not None
-        equity -= leg_cost * 2
+        final_exit_cost = leg_cost_bar[-1] * 2
+        equity -= final_exit_cost
         episodes.append(
             CarryEpisode(
                 entry_time=int(open_episode["entry_time"]),
@@ -329,9 +427,12 @@ def run_carry_backtest(  # noqa: PLR0915 — the loop mirrors one episode's life
                 entry_funding_apr=float(open_episode["entry_apr"]),
                 funding_collected=float(open_episode["funding"]),
                 basis_pnl=float(open_episode["basis"]),
-                entry_cost=leg_cost * 2,
-                exit_cost=leg_cost * 2,
-                net_pnl=float(open_episode["funding"]) + float(open_episode["basis"]) - leg_cost * 4,
+                entry_cost=float(open_episode["entry_cost"]),
+                exit_cost=final_exit_cost,
+                net_pnl=float(open_episode["funding"])
+                + float(open_episode["basis"])
+                - float(open_episode["entry_cost"])
+                - final_exit_cost,
                 exit_reason="end_of_data",
                 min_liquidation_distance=float(open_episode["min_distance"]),
             )

@@ -58,6 +58,7 @@ def test_invariant_holds_with_funding_applied(bars):
             "funding_time": settlements,
             "symbol": ["BTCUSDT"] * len(settlements),
             "funding_rate": [0.0003] * len(settlements),
+            "interval_hours": [8.0] * len(settlements),
             "mark_price": [20_000.0] * len(settlements),
         }
     )

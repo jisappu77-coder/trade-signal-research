@@ -33,6 +33,7 @@ def lake(tmp_path_factory, module_splits):
                     "funding_time": settlements,
                     "symbol": [symbol] * len(settlements),
                     "funding_rate": [0.0001] * len(settlements),
+                    "interval_hours": [8.0] * len(settlements),
                     "mark_price": [20_000.0] * len(settlements),
                 }
             ),

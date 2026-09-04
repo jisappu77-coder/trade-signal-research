@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -123,10 +123,14 @@ async def ingest_funding_archive(
         if raw is None:
             return IngestResult(symbol, "funding", year, month, 0, obj.uri, None, skipped="404")
         df = binance_archive.parse_funding(raw, symbol, obj.uri)
-        interval = binance_archive.funding_interval_hours(raw, obj.uri)
+        # A month may declare more than one interval — a mid-month spec change. The per-settlement
+        # `interval_hours` column carries it, so the month is kept and labelled rather than
+        # refused; see `binance_archive.funding_intervals` for why dropping it is not neutral.
+        intervals = binance_archive.funding_intervals(raw, obj.uri)
+        label = "/".join(f"{v:g}h" for v in intervals) if intervals else "?"
         report = quality.check_funding(df, symbol)
         store.write(df, "funding", exchange=exchange, symbol=symbol, source_uri=obj.uri)
-        return IngestResult(symbol, f"{interval:g}h", year, month, df.height, obj.uri, report)
+        return IngestResult(symbol, label, year, month, df.height, obj.uri, report)
 
     try:
         tasks = [one(y, m) for y, m in months_between(to_ms(start), to_ms(end))]
@@ -198,3 +202,124 @@ def write_quality_reports(reports: list[DataQualityReport], out_dir: Path | str)
         path.write_text(json.dumps(report.to_dict(), indent=2, sort_keys=True))
         paths.append(path)
     return paths
+
+
+@dataclass(frozen=True, slots=True)
+class BundleResult:
+    """Outcome of ingesting all three legs a carry sleeve needs for one symbol."""
+
+    symbol: str
+    perp_rows: int
+    spot_rows: int
+    funding_rows: int
+    failed_quality: int
+    error: str | None = None
+
+    @property
+    def usable(self) -> bool:
+        """A symbol is usable only if every leg arrived. Two legs cannot be carried against one."""
+        return self.error is None and min(self.perp_rows, self.spot_rows, self.funding_rows) > 0
+
+
+async def ingest_symbol_bundle(
+    store: ParquetStore,
+    symbol: str,
+    start: str | dt.date | int,
+    end: str | dt.date | int,
+    *,
+    interval: str = "1h",
+    exchange: str = "binance",
+    client: httpx.AsyncClient | None = None,
+    concurrency: int = 4,
+) -> BundleResult:
+    """Ingest perp klines, spot klines and funding for one symbol.
+
+    Months the archive does not hold are skipped, not failed: a symbol listed in 2023 legitimately
+    has no 2021 data, and treating that as an error would exclude every late listing and reinstate
+    the survivorship bias `data.universe` exists to avoid.
+    """
+    owns_client = client is None
+    client = client or httpx.AsyncClient(follow_redirects=True)
+    try:
+        perp, spot, funding = await asyncio.gather(
+            ingest_klines(
+                store,
+                symbol,
+                interval,
+                start,
+                end,
+                exchange=exchange,
+                dataset="ohlcv",
+                client=client,
+                concurrency=concurrency,
+            ),
+            ingest_klines(
+                store,
+                symbol,
+                interval,
+                start,
+                end,
+                exchange=exchange,
+                dataset="spot_ohlcv",
+                client=client,
+                concurrency=concurrency,
+            ),
+            ingest_funding_archive(
+                store, symbol, start, end, exchange=exchange, client=client, concurrency=concurrency
+            ),
+        )
+    # A broad catch on purpose: one unreachable symbol must not abort a 190-symbol ingest.
+    except Exception as exc:
+        return BundleResult(symbol, 0, 0, 0, 0, error=f"{type(exc).__name__}: {exc}")
+    finally:
+        if owns_client:
+            await client.aclose()
+
+    every = [*perp, *spot, *funding]
+    return BundleResult(
+        symbol=symbol,
+        perp_rows=sum(r.rows for r in perp),
+        spot_rows=sum(r.rows for r in spot),
+        funding_rows=sum(r.rows for r in funding),
+        failed_quality=sum(1 for r in every if r.report is not None and not r.report.passed),
+    )
+
+
+async def ingest_universe(
+    store: ParquetStore,
+    symbols: list[str],
+    start: str | dt.date | int,
+    end: str | dt.date | int,
+    *,
+    interval: str = "1h",
+    exchange: str = "binance",
+    symbol_concurrency: int = 3,
+    month_concurrency: int = 8,
+    on_done: Callable[[BundleResult], None] | None = None,
+) -> list[BundleResult]:
+    """Ingest a whole universe, one bundle per symbol, bounded in both directions.
+
+    Two concurrency limits rather than one: `symbol_concurrency` caps how many symbols are in
+    flight, `month_concurrency` how many months within a symbol. The product is what the archive
+    actually sees.
+    """
+    semaphore = asyncio.Semaphore(symbol_concurrency)
+    async with httpx.AsyncClient(follow_redirects=True) as client:
+
+        async def one(symbol: str) -> BundleResult:
+            async with semaphore:
+                result = await ingest_symbol_bundle(
+                    store,
+                    symbol,
+                    start,
+                    end,
+                    interval=interval,
+                    exchange=exchange,
+                    client=client,
+                    concurrency=month_concurrency,
+                )
+            if on_done is not None:
+                on_done(result)
+            return result
+
+        return list(await asyncio.gather(*[one(symbol) for symbol in symbols]))

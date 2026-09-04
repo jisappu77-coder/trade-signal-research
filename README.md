@@ -15,7 +15,29 @@ Its output is a **verdict** on whether an edge exists — not a P&L, and not a t
 | 4 | TSMOM | **done** — verdict: no configuration passed |
 | 5 | REGIME overlay | not started |
 | 6 | CARRY | **done** — works, and still not worth running |
+| 6b | CARRY across 173 symbols | **done** — the universe is not the constraint |
 | 7 | Reporting + comparison index | **done** — static site, see below |
+
+## Phase 6b verdict: widening the universe does not escape the ceiling
+
+CARRY was extended from 2 symbols to a **survivorship-free 173-symbol universe** enumerated from the
+Binance archive's own key listing — delisted markets (LUNA, FTT, SRM, …) included for the months they
+traded, because a funding carry dies precisely where markets collapse.
+
+The return moved from **2.41% to 2.70% post-tax** against a hurdle needing 2.6× more, and **0 of 81**
+configurations beat a fixed deposit. The reason is a trade-off the grid measures directly: lowering
+the entry threshold to keep capital deployed buys worse episodes at the same rate, so the product of
+the two terms is flat. Ranking on the highest funding is adverse selection — funding is highest where
+a market is under stress, and stress liquidates the short leg.
+
+Full record, including the two defects it found and one estimator that failed, in
+[`docs/phase-6b-carry-universe.md`](docs/phase-6b-carry-universe.md).
+
+```bash
+cryptolab discover-universe    # enumerate the tradeable universe from the archive listing
+cryptolab ingest-universe      # perp + spot + funding for every symbol in it
+cryptolab run-carry-universe   # the 81-configuration grid, and its verdict
+```
 
 ## Phase 6 verdict: CARRY works, and is still not worth running
 

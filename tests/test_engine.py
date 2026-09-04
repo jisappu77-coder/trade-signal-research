@@ -103,6 +103,7 @@ def test_funding_is_applied_at_settlement_timestamps():
             "funding_time": settlements,
             "symbol": ["BTCUSDT"] * len(settlements),
             "funding_rate": [0.0005] * len(settlements),
+            "interval_hours": [8.0] * len(settlements),
             "mark_price": [20_000.0] * len(settlements),
         }
     )
@@ -124,6 +125,7 @@ def test_a_short_receives_funding():
             "funding_time": settlements,
             "symbol": ["BTCUSDT"] * len(settlements),
             "funding_rate": [0.0005] * len(settlements),
+            "interval_hours": [8.0] * len(settlements),
             "mark_price": [20_000.0] * len(settlements),
         }
     )

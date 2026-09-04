@@ -54,6 +54,7 @@ def make_funding(times: np.ndarray, rate: float) -> pl.DataFrame:
             "funding_time": settlements,
             "symbol": ["BTCUSDT"] * len(settlements),
             "funding_rate": [rate] * len(settlements),
+            "interval_hours": [8.0] * len(settlements),
             "mark_price": [20_000.0] * len(settlements),
         }
     )

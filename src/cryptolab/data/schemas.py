@@ -34,6 +34,10 @@ FUNDING: Final[dict[str, pl.DataType]] = {
     "funding_time": pl.Int64(),
     "symbol": pl.Utf8(),
     "funding_rate": pl.Float64(),
+    # Carried per settlement, not per month: §5.1 warns that symbols move between 8h, 4h, 2h and 1h
+    # cadences, and a venue shortens the interval exactly when funding goes extreme. Annualising at
+    # an assumed 8h would misstate precisely the episodes a carry sleeve earns most from.
+    "interval_hours": pl.Float64(),
     "mark_price": pl.Float64(),
 }
 

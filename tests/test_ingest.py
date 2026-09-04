@@ -98,6 +98,7 @@ def test_funding_interval_is_inferred_not_assumed():
             "funding_time": [0, 28_800_000, 57_600_000],
             "symbol": ["B"] * 3,
             "funding_rate": [0.0] * 3,
+            "interval_hours": [8.0] * 3,
             "mark_price": [1.0] * 3,
         }
     )
@@ -107,7 +108,15 @@ def test_funding_interval_is_inferred_not_assumed():
 
 
 def test_inferring_an_interval_from_one_point_raises():
-    single = pl.DataFrame({"funding_time": [0], "symbol": ["B"], "funding_rate": [0.0], "mark_price": [1.0]})
+    single = pl.DataFrame(
+        {
+            "funding_time": [0],
+            "symbol": ["B"],
+            "funding_rate": [0.0],
+            "interval_hours": [8.0],
+            "mark_price": [1.0],
+        }
+    )
     with pytest.raises(ValueError, match="at least two settlements"):
         binance_api.infer_funding_interval_hours(single)
 
@@ -172,7 +181,7 @@ def test_kline_uri_still_keys_on_bar_size():
 
 def test_parse_funding_archive_produces_the_canonical_schema():
     df = binance_archive.parse_funding(_funding_zip(), "BTCUSDT", "test://")
-    assert df.columns == ["funding_time", "symbol", "funding_rate", "mark_price"]
+    assert df.columns == ["funding_time", "symbol", "funding_rate", "interval_hours", "mark_price"]
     assert df.height == 6
     assert df["funding_time"].is_sorted()
 

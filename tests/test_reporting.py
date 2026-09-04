@@ -295,6 +295,7 @@ def test_harness_site_builds_from_a_store(tmp_path, splits):
             "funding_time": frame["open_time"].to_list()[::8],
             "symbol": ["BTCUSDT"] * len(frame["open_time"].to_list()[::8]),
             "funding_rate": [0.0001] * len(frame["open_time"].to_list()[::8]),
+            "interval_hours": [8.0] * len(frame["open_time"].to_list()[::8]),
             "mark_price": [20_000.0] * len(frame["open_time"].to_list()[::8]),
         }
     )

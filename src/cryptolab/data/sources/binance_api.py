@@ -67,11 +67,17 @@ def parse_funding(rows: list[dict[str, Any]], symbol: str) -> pl.DataFrame:
             pl.col("fundingTime").cast(pl.Int64).alias("funding_time"),
             pl.lit(symbol, dtype=pl.Utf8).alias("symbol"),
             pl.col("fundingRate").cast(pl.Float64).alias("funding_rate"),
+            pl.lit(None, dtype=pl.Float64).alias("interval_hours"),
             mark.alias("mark_price"),
         )
         .unique(subset="funding_time", keep="first")
         .sort("funding_time")
     )
+    # The REST payload does not state the cadence, so it is measured from the settlement gaps and
+    # written back per row. The archive states it directly and is preferred for exactly this reason.
+    if out.height >= 2:
+        gaps = out["funding_time"].diff().cast(pl.Float64) / 3_600_000.0
+        out = out.with_columns(gaps.backward_fill().alias("interval_hours"))
     return schemas.validate(out, "funding")
 
 
