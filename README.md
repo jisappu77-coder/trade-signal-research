@@ -14,8 +14,34 @@ Its output is a **verdict** on whether an edge exists — not a P&L, and not a t
 | 3 | Validation harness | done |
 | 4 | TSMOM | **done** — verdict: no configuration passed |
 | 5 | REGIME overlay | not started |
-| 6 | CARRY | not started |
+| 6 | CARRY | **done** — works, and still not worth running |
 | 7 | Reporting + comparison index | **done** — static site, see below |
+
+## Phase 6 verdict: CARRY works, and is still not worth running
+
+`cryptolab run-tsmom` was the directional test; CARRY is the non-directional one. Long spot, short
+perp, collecting funding — it needs **no** directional accuracy, which is why it was the honest next
+test after TSMOM failed. Full record in [`docs/phase-6-carry.md`](docs/phase-6-carry.md).
+
+Across 54 configurations, **46 are profitable net of every cost**, with episode hit rates of 50–100%
+against §8.3's ~40% prior. It is the first strategy here that consistently makes money.
+
+**And 0 of 54 beat an Indian fixed deposit after tax.** The best earns 3.44% pre-tax and **2.41%
+post-tax** — about a third of a risk-free deposit, while carrying liquidation risk on the short leg
+(the top configurations liquidate a third to a half of their episodes) and the operational load of
+two venues.
+
+## Live signal readout
+
+```bash
+cryptolab live-signal      # evaluate the §8.3 entry condition against the market now
+cryptolab watch-summary    # summarise a completed watch
+```
+
+**This reads. It does not trade.** Public GETs only — no API key, no signing, no authenticated
+endpoint — consistent with §0 and §18, which gate live wiring behind a §11 gate pass that nothing
+has achieved. It uses OKX because Binance returns HTTP 451 from some hosts; funding differs between
+venues, so a reading indicates the strategy's state rather than continuing the backtested series.
 
 ## Phase 4 verdict: TSMOM did not pass
 
