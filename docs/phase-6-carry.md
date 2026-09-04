@@ -112,11 +112,32 @@ API key, no signing, no authenticated endpoint — consistent with §0 and §18.
 difference is itself the `XFUND` Tier-2 signal §2 keeps disabled — so a live OKX reading indicates
 the strategy's *state*, not a continuation of the backtested Binance series.
 
-**Baseline at the first reading (2026-09-04 05:09 UTC):** BTC funding **+3.47% APR**, ETH
-**+10.95% APR**, against a **33.29%** entry threshold for a 7-day hold under conservative costs.
-Neither fires, and neither is close.
+### Result: 28 observations, zero fires
 
-*(12-hour watch in progress, 05:09 → 17:09 UTC. Result to be folded in on completion.)*
+The watch ran from **2026-09-03 20:53 to 2026-09-04 17:11 UTC** (20.3 hours of wall clock, 14
+readings per symbol) against a **33.29%** entry threshold for a 7-day hold under conservative costs.
+
+| Symbol | Readings | Fired | Funding APR range | Mean | **Closest approach** |
+|---|---:|---:|---|---:|---:|
+| BTCUSDT | 14 | **0** | +1.44% to +5.70% | +3.89% | **−27.58%** |
+| ETHUSDT | 14 | **0** | +4.01% to +10.95% | +7.32% | **−22.34%** |
+
+**Nothing fired, and nothing came close.** The closest approach — ETH's opening +10.95% — was still
+**22 percentage points** below the threshold, and funding *fell* over the window on both legs rather
+than rising toward it. The basis was mildly **negative** throughout (−3.5 to −6.3 bps): the perp
+traded a shade cheap to spot, which is the opposite side of the carry entry. That is consistent with
+funding this low. There was no crowd paying to be long.
+
+This is a real result, not a failed experiment. The informative number is the closest approach, and
+it says the funding regime over this window did not pay enough to cover two legs of cost — which is
+exactly what the backtest predicts should happen most of the time. The best backtested configuration
+was deployed under half the period; a day sampled at random should be expected to find the sleeve in
+cash, and it did.
+
+**A single day proves nothing about the strategy.** Twenty hours is not a sample, and no live
+observation here changes a backtested verdict. What the watch establishes is narrower and still
+worth having: the readout works end to end against a live venue, its entry arithmetic agrees with
+the backtest's, and it correctly declines to fire. Raw log: [`live_watch.jsonl`](live_watch.jsonl).
 
 ## What this does not say
 
