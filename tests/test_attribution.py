@@ -216,13 +216,14 @@ def test_all_losses_are_not_flagged():
 # ---- §17 tax ------------------------------------------------------------------------
 
 
-def test_a_profitable_run_pays_thirty_percent():
+def test_a_profitable_run_pays_the_statutory_rate_plus_cess():
+    """§17 names 30%; the cess is levied on the tax, so the real bite is 31.2%."""
     outcome = tax.tax_single_run(
         pre_tax_pnl=100_000.0, traded_notional=1e6, initial_equity=25_000.0, years=4.5
     )
-    assert outcome.tax_due == pytest.approx(30_000.0)
-    assert outcome.post_tax_pnl == pytest.approx(70_000.0)
-    assert outcome.effective_rate == pytest.approx(0.30)
+    assert outcome.tax_due == pytest.approx(31_200.0)
+    assert outcome.post_tax_pnl == pytest.approx(68_800.0)
+    assert outcome.effective_rate == pytest.approx(tax.EFFECTIVE_VDA_RATE)
 
 
 def test_a_loss_earns_no_relief():
@@ -241,10 +242,10 @@ def test_losers_do_not_subsidise_winners_across_a_grid():
         [100_000.0, -60_000.0], traded_notional=1e6, initial_equity=25_000.0, years=4.5
     )
     assert outcome.pre_tax_pnl == pytest.approx(40_000.0)
-    assert outcome.tax_due == pytest.approx(30_000.0)  # 30% of the winner alone
-    assert outcome.post_tax_pnl == pytest.approx(10_000.0)
-    # An effective rate far above the headline 30% is the whole point.
-    assert outcome.effective_rate > 0.30
+    assert outcome.tax_due == pytest.approx(31_200.0)  # the winner alone, cess included
+    assert outcome.post_tax_pnl == pytest.approx(8_800.0)
+    # An effective rate far above the headline rate is the whole point.
+    assert outcome.effective_rate > tax.EFFECTIVE_VDA_RATE
 
 
 def test_tds_is_withholding_on_disposals_not_a_cost_per_round_trip():

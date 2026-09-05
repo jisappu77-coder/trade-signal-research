@@ -1,25 +1,38 @@
 # Phase 6b — CARRY across the whole universe
 
-**Date:** 2026-09-04 · **Data:** Binance USD-M perpetuals *and* spot, 173 symbols, 2020-01-01 →
+**Date:** 2026-09-04 (benchmark corrected 2026-09-05) · **Data:** Binance USD-M perpetuals *and*
+spot, **192 symbols**, 2020-01-01 →
 2024-06-30 (train + validation) · **Costs:** conservative (15 bps round trip) plus §7 square-root
 impact sized per bar · **Book:** $25,000 · **Trials `N` (carry family): 81** ·
 **Sealed test period: not opened.**
 
 ## Verdict
 
-**Widening the universe from 2 symbols to 173 moved the return from 2.41% to 2.70% post-tax. It did
+**Widening the universe from 2 symbols to 192 moved the return from 2.37% to 2.65% post-tax. It did
 not change the answer.**
 
-| | Phase 6 (BTC + ETH) | Phase 6b (173 symbols) |
+| | Phase 6 (BTC + ETH) | Phase 6b (192 symbols) |
 |---|---:|---:|
 | Best pre-tax APR | 3.44% | **3.86%** |
-| Best post-tax APR | 2.41% | **2.70%** |
-| Configurations beating a ~7% FD post-tax | 0 / 54 | **0 / 81** |
+| Best post-tax APR | 2.37% | **2.65%** |
+| Configurations beating a 7% FD post-tax (30% slab → **4.82%**) | 0 / 54 | **0 / 81** |
 | Configurations profitable pre-tax | 46 / 54 (85%) | **60 / 81 (74%)** |
 | Worst configuration | — | **−8.60% pre-tax** |
 
-A 12% relative improvement against a hurdle that needs **2.6×**. And the distribution got *worse*:
+A 12% relative improvement against a hurdle that needs **1.8×**. And the distribution got *worse*:
 a quarter of the configurations now lose money outright, where Phase 6 had 85% profitable.
+
+> **Correction (2026-09-05).** The first version of this page compared a post-tax strategy return
+> against a **pre-tax** 7% deposit, and taxed VDA gains at 30% without the 4% cess. Indian FD
+> interest is taxed at the holder's slab rate, so the honest hurdle is **4.82% post-tax** at the top
+> bracket — a 7% figure applies only to someone below the rebate threshold. The verdict is unchanged
+> and the gap is real, but it is 1.8× rather than the 2.6× first published, and the closing section
+> on remaining levers was too dismissive. Both are fixed below.
+>
+> The re-run also picked up the **19 symbols the funding-interval guard had been dropping**, taking
+> the universe from 173 to 192. Worth stating plainly: it did **not** move the headline. The best
+> configuration is unchanged at 3.86% pre-tax. The guard's bias was real in principle and turned out
+> to be immaterial here.
 
 **This was my recommendation, and the estimate behind it was wrong.** I projected roughly 8%
 post-tax on the reasoning that a wider universe would lift both the share of time capital is
@@ -45,9 +58,9 @@ book APR  =  funding captured  ×  capital efficiency  ×  deployment fraction  
 Deployment did not rise at all, and capture rose by a sixth. Three reasons, each measurable:
 
 **1. The threshold gates entry, not the ranking.** With 12 slots the sleeve used **5.37 on
-average** — half the book sat in cash even with 173 candidates. Funding above the entry threshold
+average** — half the book sat in cash even with 192 candidates. Funding above the entry threshold
 in twelve markets at once is rare. Cross-sectional ranking only bites when more symbols qualify
-than there are slots, and that is the uncommon case, so the extra 171 symbols mostly changed
+than there are slots, and that is the uncommon case, so the extra 190 symbols mostly changed
 nothing.
 
 **2. Deployment and capture move in opposite directions, and the only knob controls both.** The
@@ -56,7 +69,7 @@ episodes at exactly the same rate:
 
 | Hold | Entry threshold | Mean deployment | Mean hit rate | Mean pre-tax APR |
 |---|---:|---:|---:|---:|
-| 1 day | 221.0% | 15.3% | 64.6% | **2.41%** |
+| 1 day | 221.0% | 10.4% | 64.6% | **1.76%** |
 | 3 days | 75.0% | 28.5% | 39.8% | **0.37%** |
 | 7 days | 33.3% | 47.7% | 38.2% | **0.08%** |
 
@@ -79,14 +92,14 @@ Costs rose from 31% of gross funding to 35%, because 293 episodes pay 1,172 fill
 × margin (20%, 50%, 100%). Registered before the run, per §10.4.
 
 | Hold | Exit | Slots | Margin | Episodes | Hit rate | Liquidated | Deployed | Pre-tax | Post-tax |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 3d | 0.00 | 12 | 50% | 293 | 66% | 31.7% | 44.8% | 3.86% | **2.70%** |
-| 7d | 0.00 | 12 | 50% | 406 | 53% | 28.3% | 55.3% | 3.63% | 2.54% |
-| 3d | 0.00 | 8 | 50% | 204 | 64% | 32.4% | 46.7% | 3.61% | 2.53% |
-| 1d | 0.00 | 4 | 50% | 55 | 76% | 40.0% | 23.3% | 3.60% | 2.52% |
-| 7d | 0.00 | 12 | 100% | 339 | 55% | 13.9% | 55.6% | 3.34% | 2.34% |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 3d | 0.00 | 12 | 50% | 293 | 66% | 31.7% | 44.8% | 3.86% | **2.65%** |
+| 7d | 0.00 | 12 | 50% | 406 | 53% | 28.3% | 55.3% | 3.63% | 2.50% |
+| 7d | 0.25 | 12 | 50% | 431 | 52% | 26.7% | 52.7% | 3.62% | 2.49% |
+| 3d | 0.00 | 8 | 50% | 204 | 64% | 32.4% | 46.7% | 3.61% | 2.49% |
+| 1d | 0.00 | 4 | 50% | 55 | 76% | 40.0% | 23.3% | 3.60% | 2.47% |
 
-Best by slot count: 4 slots 2.52%, 8 slots 2.53%, 12 slots 2.70%. Tripling the slot count buys
+Best by slot count: 4 slots 2.47%, 8 slots 2.49%, 12 slots 2.65%. Tripling the slot count buys
 18 basis points — another reading of the same ceiling.
 
 **The failure record** (§12: it is the product). The worst four configurations all pay 20% margin on
@@ -102,8 +115,8 @@ of today's survivors would remove the losses the strategy is most exposed to and
 number above.
 
 - 471 USDT symbols have both a perp and a spot archive; 192 have a complete perp + spot + funding
-  month; **173 ingested with all three legs**; 84 traded at least one episode in the best
-  configuration.
+  month, and **all 192 ingest with all three legs** once the funding-interval guard is fixed (it was
+  dropping 19, including SOL and FTT); 84 traded at least one episode in the best configuration.
 - LUNA, FTT, SRM, RAY, ANC, WAVES, TOMO, REN, CVC, BTS, SC and others are **in** the universe for
   the months they traded, and then simply end.
 
@@ -157,8 +170,20 @@ window, under conservative costs and Indian VDA tax, **the return is capped near
 trade-off between how often capital works and how good the opportunities are**, and widening the
 universe does not escape it because it does not change that trade-off.
 
-The levers that remain are all outside the strategy rule: maker execution (costs are 35% of gross),
-cross-margin (capital efficiency 0.67 → ~0.9), and the 30% §115BBH rate with no loss set-off. The
-first two together are worth perhaps another 1.5–2 points on a 3.86% base. That is not a route to 7%.
+The levers that remain are all outside the strategy rule, and against the *corrected* hurdle they
+are closer than the first version of this page claimed:
+
+| | Pre-tax | Post-tax |
+|---|---:|---:|
+| As measured | 3.86% | 2.65% |
+| + maker execution (costs are 34% of gross) | 4.85% | 3.33% |
+| + cross-margin (capital efficiency 0.67 → 0.90) | 6.54% | **4.50%** |
+| **Hurdle (7% FD, 30% slab)** | | **4.82%** |
+
+Both levers together land **32 basis points short** of a risk-free deposit. So the honest closing
+statement is not "the return is far too small" — it is that in the best realistic case the sleeve
+*matches* a deposit while carrying a 32% episode liquidation rate, two-venue execution risk and the
+operational load of running both. Paying that for no excess return is the reason not to run it. The
+first version of this page got the right verdict from a wrong number, which is worth recording.
 
 The sealed test period remains unopened, and no §11 gate has been passed by anything in this project.

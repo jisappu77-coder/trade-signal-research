@@ -18,6 +18,7 @@ from cryptolab.reporting.carry_universe_run import (
 )
 from cryptolab.validation.registry import TrialRegistry
 from cryptolab.validation.synthetic import synthetic_bars
+from cryptolab.validation.tax import fixed_deposit_hurdle_apr, tax_single_run
 
 BARS = 6_000
 START, END = "2020-01-01", "2020-09-30"
@@ -185,10 +186,44 @@ def test_a_losing_run_gets_no_tax_relief(executed):
             assert run.post_tax_apr == pytest.approx(run.pre_tax_apr)
 
 
-def test_the_fixed_deposit_comparison_is_explicit(executed):
+def test_the_fixed_deposit_comparison_is_post_tax_on_both_sides(executed):
+    """The original error: a 30%-taxed return compared against an *untaxed* deposit rate."""
     runs, _, _, _ = executed
     for run in runs:
-        assert run.beats_fixed_deposit == (run.post_tax_apr > 0.07)
+        assert run.beats_fixed_deposit(0.07, 0.30) == (run.post_tax_apr > fixed_deposit_hurdle_apr())
+
+
+def test_a_higher_slab_lowers_the_bar(executed):
+    """A deposit is worth less to a top-bracket holder, so the hurdle it sets is lower."""
+    runs, _, _, _ = executed
+    assert fixed_deposit_hurdle_apr(0.07, 0.30) < fixed_deposit_hurdle_apr(0.07, 0.05)
+    # A run can clear the top-slab hurdle and miss the zero-slab one; never the reverse.
+    for run in runs:
+        assert run.beats_fixed_deposit(0.07, 0.0) <= run.beats_fixed_deposit(0.07, 0.30)
+
+
+def test_only_a_zero_slab_holder_keeps_the_headline_rate():
+    assert fixed_deposit_hurdle_apr(0.07, 0.0) == pytest.approx(0.07)
+    assert fixed_deposit_hurdle_apr(0.07, 0.30) == pytest.approx(0.07 * (1 - 0.312))
+
+
+def test_an_impossible_slab_is_refused():
+    with pytest.raises(ValueError, match="slab_rate"):
+        fixed_deposit_hurdle_apr(0.07, 1.5)
+
+
+def test_cess_is_charged_on_vda_gains():
+    """§17 names 30%; the cess is levied on top and omitting it flatters every post-tax figure."""
+    outcome = tax_single_run(pre_tax_pnl=1_000.0, traded_notional=0.0, initial_equity=25_000.0, years=1.0)
+    assert outcome.tax_due == pytest.approx(1_000.0 * 0.312)
+    assert outcome.post_tax_pnl == pytest.approx(688.0)
+
+
+def test_a_loss_still_gets_no_relief_under_cess():
+    """§115BBH's asymmetry is untouched by the refinement: a loss buys nothing."""
+    outcome = tax_single_run(pre_tax_pnl=-500.0, traded_notional=0.0, initial_equity=25_000.0, years=1.0)
+    assert outcome.tax_due == 0.0
+    assert outcome.post_tax_pnl == pytest.approx(-500.0)
 
 
 def test_liquidation_rate_is_reported_beside_the_return(executed):

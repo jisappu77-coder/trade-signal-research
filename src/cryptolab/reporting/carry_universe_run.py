@@ -33,7 +33,12 @@ from cryptolab.backtest.costs import get_regime
 from cryptolab.data.store import ParquetStore
 from cryptolab.signals.carry import DEFAULT_MARGIN_BUFFER, entry_threshold_apr
 from cryptolab.validation.registry import TrialRegistry
-from cryptolab.validation.tax import tax_single_run
+from cryptolab.validation.tax import (
+    DEFAULT_FD_RATE_APR,
+    DEFAULT_SLAB_RATE,
+    fixed_deposit_hurdle_apr,
+    tax_single_run,
+)
 
 STRATEGY_FAMILY = "carry"
 SIGNAL = "carry_xs"
@@ -84,10 +89,18 @@ class UniverseRun:
     pre_tax_apr: float
     post_tax_apr: float
 
-    @property
-    def beats_fixed_deposit(self) -> bool:
-        """The benchmark that matters to the operator: a ~7% Indian fixed deposit, post-tax."""
-        return self.post_tax_apr > 0.07
+    def beats_fixed_deposit(
+        self,
+        fd_rate_apr: float = DEFAULT_FD_RATE_APR,
+        slab_rate: float = DEFAULT_SLAB_RATE,
+    ) -> bool:
+        """Does this clear the risk-free alternative, **post-tax on both sides**?
+
+        Comparing a 30%-taxed strategy return against an *untaxed* deposit rate was the error this
+        method exists to prevent: Indian FD interest is taxed at the holder's slab rate, so a 7%
+        deposit is 4.82% post-tax at the top bracket and only 7% for someone below the rebate.
+        """
+        return self.post_tax_apr > fixed_deposit_hurdle_apr(fd_rate_apr, slab_rate)
 
 
 def summarise(result: PortfolioResult, params: dict[str, Any], entry: float, capital: float) -> UniverseRun:

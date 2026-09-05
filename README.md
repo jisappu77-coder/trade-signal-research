@@ -15,17 +15,17 @@ Its output is a **verdict** on whether an edge exists — not a P&L, and not a t
 | 4 | TSMOM | **done** — verdict: no configuration passed |
 | 5 | REGIME overlay | not started |
 | 6 | CARRY | **done** — works, and still not worth running |
-| 6b | CARRY across 173 symbols | **done** — the universe is not the constraint |
+| 6b | CARRY across 192 symbols | **done** — the universe is not the constraint |
 | 7 | Reporting + comparison index | **done** — static site, see below |
 
 ## Phase 6b verdict: widening the universe does not escape the ceiling
 
-CARRY was extended from 2 symbols to a **survivorship-free 173-symbol universe** enumerated from the
+CARRY was extended from 2 symbols to a **survivorship-free 192-symbol universe** enumerated from the
 Binance archive's own key listing — delisted markets (LUNA, FTT, SRM, …) included for the months they
 traded, because a funding carry dies precisely where markets collapse.
 
-The return moved from **2.41% to 2.70% post-tax** against a hurdle needing 2.6× more, and **0 of 81**
-configurations beat a fixed deposit. The reason is a trade-off the grid measures directly: lowering
+The return moved from **2.37% to 2.65% post-tax** against a **4.82%** hurdle (a 7% fixed deposit is
+taxed at slab rates, so it is not a 7% post-tax return), and **0 of 81** configurations beat it. The reason is a trade-off the grid measures directly: lowering
 the entry threshold to keep capital deployed buys worse episodes at the same rate, so the product of
 the two terms is flat. Ranking on the highest funding is adverse selection — funding is highest where
 a market is under stress, and stress liquidates the short leg.
@@ -48,8 +48,8 @@ test after TSMOM failed. Full record in [`docs/phase-6-carry.md`](docs/phase-6-c
 Across 54 configurations, **46 are profitable net of every cost**, with episode hit rates of 50–100%
 against §8.3's ~40% prior. It is the first strategy here that consistently makes money.
 
-**And 0 of 54 beat an Indian fixed deposit after tax.** The best earns 3.44% pre-tax and **2.41%
-post-tax** — about a third of a risk-free deposit, while carrying liquidation risk on the short leg
+**And 0 of 54 beat an Indian fixed deposit after tax.** The best earns 3.44% pre-tax and **2.37%
+post-tax** — roughly half a risk-free deposit, while carrying liquidation risk on the short leg
 (the top configurations liquidate a third to a half of their episodes) and the operational load of
 two venues.
 

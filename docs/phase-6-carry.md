@@ -18,13 +18,20 @@ consistently makes money.
 | | |
 |---|---|
 | Configurations profitable post-tax | **46 / 54** |
-| Configurations beating a ~7% FD post-tax | **0 / 54** |
+| Configurations beating a 7% FD post-tax (30% slab → 4.82%) | **0 / 54** |
 | Best pre-tax APR | 3.44% |
-| Best post-tax APR | **2.41%** |
+| Best post-tax APR | **2.37%** |
 
-The best configuration earns roughly **a third of a risk-free deposit**, while carrying liquidation
-risk on the short leg, execution risk across two venues, and the operational load of running both.
-That is the verdict, and the 100% hit rate is not a reason to soften it.
+> **Correction (2026-09-05).** This page originally compared a post-tax strategy return against a
+> **pre-tax** 7% deposit, and taxed VDA gains at 30% without the 4% Health & Education Cess. Both
+> are fixed. Indian FD interest is taxed at the holder's slab rate, so the honest hurdle is **4.82%
+> post-tax** at the top bracket, not 7%; and §115BBH's real bite is **31.2%**, not 30%. The verdict
+> is unchanged — nothing clears either version of the bar — but the gap is **1.8×, not 2.6×**, and
+> the phrase "about a third of a fixed deposit" was wrong: it is **roughly half** of one.
+
+The best configuration earns roughly **half a risk-free deposit** (2.37% against 4.82%), while
+carrying liquidation risk on the short leg, execution risk across two venues, and the operational
+load of running both. That is the verdict, and the 100% hit rate is not a reason to soften it.
 
 ## The grid
 
@@ -32,12 +39,15 @@ Top configurations by post-tax APR:
 
 | Symbol | Hold | Exit | Margin | Episodes | Hit rate | Liquidated | Pre-tax APR | Post-tax APR |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| ETH | 7d | 0.00 | 50% | 16 | 100% | 50% | 3.44% | **2.41%** |
-| ETH | 7d | 0.25 | 50% | 16 | 94% | 44% | 3.38% | 2.36% |
-| ETH | 3d | 0.00 | 50% | 14 | 93% | 57% | 2.93% | 2.05% |
-| ETH | 7d | 0.00 | 100% | 12 | 100% | 33% | 2.89% | 2.03% |
-| BTC | 7d | 0.00 | 50% | 12 | 83% | 33% | 2.87% | 2.01% |
-| BTC | 7d | 0.25 | 100% | 12 | 100% | 8% | 2.10% | 1.47% |
+| ETH | 7d | 0.00 | 50% | 16 | 100% | 50% | 3.44% | **2.37%** |
+| ETH | 7d | 0.25 | 50% | 16 | 94% | 44% | 3.38% | 2.33% |
+| ETH | 3d | 0.00 | 50% | 14 | 93% | 57% | 2.93% | 2.02% |
+| ETH | 7d | 0.00 | 100% | 12 | 100% | 33% | 2.89% | 1.99% |
+| BTC | 7d | 0.00 | 50% | 12 | 83% | 33% | 2.87% | 1.97% |
+| BTC | 7d | 0.25 | 100% | 12 | 100% | 8% | 2.10% | 1.44% |
+
+Post-tax figures are the unchanged pre-tax numbers at the corrected 31.2% effective rate; for a
+profitable run the relationship is exactly `post = pre × 0.688`.
 
 **Read the liquidation column beside the return column.** The highest-returning configurations
 liquidate a third to a half of their episodes. Reporting a single headline number without it would

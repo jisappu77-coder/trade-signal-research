@@ -28,8 +28,42 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Final
 
-VDA_RATE: Final[float] = 0.30  # §115BBH
+VDA_RATE: Final[float] = 0.30  # §115BBH statutory rate, as §17 states it
 TDS_RATE: Final[float] = 0.01  # §194S, on the transfer value of each disposal
+
+# Health & Education Cess, levied on the tax itself rather than on income. §17 names only the 30%
+# statutory rate, so this is a deliberate refinement of the spec rather than a restatement of it:
+# the cess is a real liability, and omitting it flatters every post-tax figure this project prints.
+# It errs conservative, which is the safe direction for a number used to decide whether to trade.
+CESS_RATE: Final[float] = 0.04
+EFFECTIVE_VDA_RATE: Final[float] = VDA_RATE * (1.0 + CESS_RATE)
+
+# ---- the benchmark side ------------------------------------------------------------------
+#
+# **The comparison that was wrong, and why it matters.** A post-tax VDA return must be compared
+# against a post-tax alternative. Indian fixed-deposit interest is taxed as *income from other
+# sources* at the holder's slab rate — it is not a risk-free 7% for anyone who pays income tax.
+# Comparing a 30%-taxed strategy return against an untaxed deposit rate overstates the hurdle by
+# up to a third and makes a marginal strategy look hopeless.
+DEFAULT_FD_RATE_APR: Final[float] = 0.07
+# The slab to assume when none is given. The top bracket is the conservative choice for a hurdle:
+# it is the *lowest* post-tax deposit return, so it is the easiest bar for a strategy to clear, and
+# a strategy that fails even this one fails for everybody.
+DEFAULT_SLAB_RATE: Final[float] = 0.30
+
+
+def fixed_deposit_hurdle_apr(
+    fd_rate_apr: float = DEFAULT_FD_RATE_APR,
+    slab_rate: float = DEFAULT_SLAB_RATE,
+) -> float:
+    """Post-tax return of the risk-free alternative, at a given deposit rate and income slab.
+
+    At a 30% slab plus cess a 7% deposit returns 4.82% post-tax, not 7%. Only a holder below the
+    rebate threshold (slab 0) actually keeps the headline rate.
+    """
+    if not 0.0 <= slab_rate < 1.0:
+        raise ValueError(f"slab_rate must be in [0, 1), got {slab_rate}")
+    return fd_rate_apr * (1.0 - slab_rate * (1.0 + CESS_RATE))
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,7 +92,7 @@ class TaxOutcome:
 
     @property
     def effective_rate(self) -> float:
-        """Tax as a share of pre-tax profit. Exceeds 30% whenever losses are stranded."""
+        """Tax as a share of pre-tax profit. Exceeds the headline rate whenever losses are stranded."""
         return self.tax_due / self.pre_tax_pnl if self.pre_tax_pnl > 0 else 0.0
 
     @property
@@ -85,7 +119,7 @@ def tax_single_run(
         pre_tax_pnl=pre_tax_pnl,
         taxable_gains=gains,
         unusable_losses=losses,
-        tax_due=VDA_RATE * gains,
+        tax_due=EFFECTIVE_VDA_RATE * gains,
         tds_withheld=TDS_RATE * traded_notional / 2.0,
         initial_equity=initial_equity,
         years=years,
@@ -112,7 +146,7 @@ def tax_portfolio(
         pre_tax_pnl=total,
         taxable_gains=gains,
         unusable_losses=losses,
-        tax_due=VDA_RATE * gains,
+        tax_due=EFFECTIVE_VDA_RATE * gains,
         tds_withheld=TDS_RATE * traded_notional / 2.0,
         initial_equity=initial_equity,
         years=years,

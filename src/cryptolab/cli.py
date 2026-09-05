@@ -312,6 +312,8 @@ def run_carry_universe(  # noqa: PLR0917
     start: Annotated[str, typer.Option()] = "2020-01-01",
     end: Annotated[str, typer.Option()] = "2024-06-30",
     capital: Annotated[float, typer.Option()] = 25_000.0,
+    fd_rate: Annotated[float, typer.Option(help="Risk-free deposit rate to benchmark against")] = 0.07,
+    slab: Annotated[float, typer.Option(help="Income-tax slab the deposit interest is taxed at")] = 0.30,
     out: Annotated[Path, typer.Option()] = Path("data/carry_universe_results.json"),
     config: Annotated[Path, typer.Option()] = Path("config/base.yaml"),
 ) -> None:
@@ -352,7 +354,10 @@ def run_carry_universe(  # noqa: PLR0917
         )
 
     write_results(runs, n, used, out)
-    beat = [r for r in runs if r.beats_fixed_deposit]
+    from cryptolab.validation.tax import fixed_deposit_hurdle_apr
+
+    hurdle = fixed_deposit_hurdle_apr(fd_rate, slab)
+    beat = [r for r in runs if r.beats_fixed_deposit(fd_rate, slab)]
     best = max(runs, key=lambda r: r.post_tax_apr)
     typer.echo("")
     typer.secho(f"trials N (carry family)   {n}", bold=True)
@@ -360,7 +365,7 @@ def run_carry_universe(  # noqa: PLR0917
     typer.echo(f"configurations run         {len(runs)}")
     typer.echo(f"profitable post-tax        {sum(1 for r in runs if r.post_tax_apr > 0)}/{len(runs)}")
     typer.secho(
-        f"beating a ~7% fixed deposit {len(beat)}/{len(runs)}",
+        f"beating a {fd_rate:.1%} FD at a {slab:.0%} slab ({hurdle:.2%} post-tax) {len(beat)}/{len(runs)}",
         fg=typer.colors.GREEN if beat else typer.colors.RED,
         bold=True,
     )

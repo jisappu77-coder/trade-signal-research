@@ -213,7 +213,7 @@
       "total_basis_pnl": 703.0769924850835,
       "total_costs": 3275.788076048486,
       "pre_tax_apr": 0.030628461573394456,
-      "post_tax_apr": 0.021439923101376122
+      "post_tax_apr": 0.021072381562495385
     },
     {
       "min_holding_days": 1.0,
@@ -233,7 +233,7 @@
       "total_basis_pnl": 489.1320583452842,
       "total_costs": 1279.599949990093,
       "pre_tax_apr": 0.03597186613425355,
-      "post_tax_apr": 0.025180306293977488
+      "post_tax_apr": 0.024748643900366445
     },
     {
       "min_holding_days": 1.0,
@@ -253,7 +253,7 @@
       "total_basis_pnl": 494.55436813975194,
       "total_costs": 701.0220428647777,
       "pre_tax_apr": 0.03086415157861137,
-      "post_tax_apr": 0.02160490610502796
+      "post_tax_apr": 0.021234536286084623
     },
     {
       "min_holding_days": 1.0,
@@ -273,7 +273,7 @@
       "total_basis_pnl": 834.2333649760096,
       "total_costs": 2788.302293791047,
       "pre_tax_apr": 0.03137822167829143,
-      "post_tax_apr": 0.021964755174803997
+      "post_tax_apr": 0.021588216514664506
     },
     {
       "min_holding_days": 1.0,
@@ -293,7 +293,7 @@
       "total_basis_pnl": 579.234171908308,
       "total_costs": 1189.3968384867069,
       "pre_tax_apr": 0.03446348353917225,
-      "post_tax_apr": 0.024124438477420577
+      "post_tax_apr": 0.023710876674950507
     },
     {
       "min_holding_days": 1.0,
@@ -313,7 +313,7 @@
       "total_basis_pnl": 515.6830602281408,
       "total_costs": 598.1158891182788,
       "pre_tax_apr": 0.029102441732339234,
-      "post_tax_apr": 0.020371709212637465
+      "post_tax_apr": 0.020022479911849394
     },
     {
       "min_holding_days": 1.0,
@@ -333,7 +333,7 @@
       "total_basis_pnl": 826.085657365793,
       "total_costs": 2924.0735400622193,
       "pre_tax_apr": 0.028803143639951234,
-      "post_tax_apr": 0.020162200547965865
+      "post_tax_apr": 0.01981656282428645
     },
     {
       "min_holding_days": 1.0,
@@ -353,7 +353,7 @@
       "total_basis_pnl": 598.46841734464,
       "total_costs": 1145.3611280302375,
       "pre_tax_apr": 0.03322798716021374,
-      "post_tax_apr": 0.02325959101214962
+      "post_tax_apr": 0.022860855166227052
     },
     {
       "min_holding_days": 1.0,
@@ -373,7 +373,7 @@
       "total_basis_pnl": 486.5554006726705,
       "total_costs": 586.547050572971,
       "pre_tax_apr": 0.027755809063701117,
-      "post_tax_apr": 0.01942906634459078
+      "post_tax_apr": 0.019095996635826364
     },
     {
       "min_holding_days": 1.0,
@@ -393,7 +393,7 @@
       "total_basis_pnl": 914.7484973826332,
       "total_costs": 3472.8011014492117,
       "pre_tax_apr": 0.009067496321498052,
-      "post_tax_apr": 0.006347247425048637
+      "post_tax_apr": 0.006238437469190661
     },
     {
       "min_holding_days": 1.0,
@@ -413,7 +413,7 @@
       "total_basis_pnl": 665.1197684156616,
       "total_costs": 1865.9590514435915,
       "pre_tax_apr": 0.01594320320962969,
-      "post_tax_apr": 0.011160242246740785
+      "post_tax_apr": 0.010968923808225228
     },
     {
       "min_holding_days": 1.0,
@@ -433,7 +433,7 @@
       "total_basis_pnl": 584.7129352564252,
       "total_costs": 1253.3541418301538,
       "pre_tax_apr": 0.014525314368341789,
-      "post_tax_apr": 0.010167720057839252
+      "post_tax_apr": 0.00999341628541915
     },
     {
       "min_holding_days": 1.0,
@@ -453,7 +453,7 @@
       "total_basis_pnl": 864.7069119787653,
       "total_costs": 2855.7206336551535,
       "pre_tax_apr": 0.010727277730889453,
-      "post_tax_apr": 0.007509094411622619
+      "post_tax_apr": 0.007380367078851945
     },
     {
       "min_holding_days": 1.0,
@@ -473,7 +473,7 @@
       "total_basis_pnl": 723.856218208675,
       "total_costs": 1603.2932780245064,
       "pre_tax_apr": 0.01523562533760091,
-      "post_tax_apr": 0.010664937736320637
+      "post_tax_apr": 0.010482110232269425
     },
     {
       "min_holding_days": 1.0,
@@ -493,7 +493,7 @@
       "total_basis_pnl": 613.3302772048884,
       "total_costs": 1051.390034574544,
       "pre_tax_apr": 0.01338784879895971,
-      "post_tax_apr": 0.009371494159271798
+      "post_tax_apr": 0.00921083997368428
     },
     {
       "min_holding_days": 1.0,
@@ -513,7 +513,7 @@
       "total_basis_pnl": 858.9496872767829,
       "total_costs": 2687.860250823061,
       "pre_tax_apr": 0.009474389650959402,
-      "post_tax_apr": 0.006632072755671582
+      "post_tax_apr": 0.006518380079860069
     },
     {
       "min_holding_days": 1.0,
@@ -533,7 +533,7 @@
       "total_basis_pnl": 718.6451395164648,
       "total_costs": 1452.3750408912426,
       "pre_tax_apr": 0.014248599602401745,
-      "post_tax_apr": 0.009974019721681222
+      "post_tax_apr": 0.0098030365264524
     },
     {
       "min_holding_days": 1.0,
@@ -553,7 +553,7 @@
       "total_basis_pnl": 569.3478045207669,
       "total_costs": 964.7204500864009,
       "pre_tax_apr": 0.012118761980333721,
-      "post_tax_apr": 0.008483133386233604
+      "post_tax_apr": 0.0083377082424696
     },
     {
       "min_holding_days": 1.0,
@@ -573,7 +573,7 @@
       "total_basis_pnl": 1013.9145348738392,
       "total_costs": 3539.8302085965224,
       "pre_tax_apr": 0.0050377790095191095,
-      "post_tax_apr": 0.003526445306663376
+      "post_tax_apr": 0.0034659919585491475
     },
     {
       "min_holding_days": 1.0,
@@ -593,7 +593,7 @@
       "total_basis_pnl": 851.5855443383579,
       "total_costs": 2245.663006220084,
       "pre_tax_apr": 0.011121460218884285,
-      "post_tax_apr": 0.007785022153218999
+      "post_tax_apr": 0.007651564630592388
     },
     {
       "min_holding_days": 1.0,
@@ -613,7 +613,7 @@
       "total_basis_pnl": 708.1325869675806,
       "total_costs": 1604.4608201956835,
       "pre_tax_apr": 0.010145766155197503,
-      "post_tax_apr": 0.007102036308638252
+      "post_tax_apr": 0.0069802871147758815
     },
     {
       "min_holding_days": 1.0,
@@ -633,7 +633,7 @@
       "total_basis_pnl": 1072.3728328111972,
       "total_costs": 2999.9931895772456,
       "pre_tax_apr": 0.007574767717788654,
-      "post_tax_apr": 0.0053023374024520585
+      "post_tax_apr": 0.005211440189838593
     },
     {
       "min_holding_days": 1.0,
@@ -653,7 +653,7 @@
       "total_basis_pnl": 899.4501933182358,
       "total_costs": 1922.1039448712454,
       "pre_tax_apr": 0.010942222298282138,
-      "post_tax_apr": 0.007659555608797497
+      "post_tax_apr": 0.007528248941218112
     },
     {
       "min_holding_days": 1.0,
@@ -673,7 +673,7 @@
       "total_basis_pnl": 735.3047584104968,
       "total_costs": 1349.827904882954,
       "pre_tax_apr": 0.009687103648760029,
-      "post_tax_apr": 0.0067809725541320195
+      "post_tax_apr": 0.0066647273103469
     },
     {
       "min_holding_days": 1.0,
@@ -693,7 +693,7 @@
       "total_basis_pnl": 1079.8171188813412,
       "total_costs": 2912.04791684001,
       "pre_tax_apr": 0.00548620404976521,
-      "post_tax_apr": 0.003840342834835647
+      "post_tax_apr": 0.003774508386238464
     },
     {
       "min_holding_days": 1.0,
@@ -713,7 +713,7 @@
       "total_basis_pnl": 880.0043852387977,
       "total_costs": 1678.9796950379657,
       "pre_tax_apr": 0.010383942095095413,
-      "post_tax_apr": 0.00726875946656679
+      "post_tax_apr": 0.0071441521614256445
     },
     {
       "min_holding_days": 1.0,
@@ -733,7 +733,7 @@
       "total_basis_pnl": 660.0696705901053,
       "total_costs": 1203.1008220509266,
       "pre_tax_apr": 0.008352482233795238,
-      "post_tax_apr": 0.005846737563656666
+      "post_tax_apr": 0.005746507776851124
     },
     {
       "min_holding_days": 3.0,
@@ -753,7 +753,7 @@
       "total_basis_pnl": -1404.9977569079476,
       "total_costs": 5605.013891857226,
       "pre_tax_apr": 0.013828443431111193,
-      "post_tax_apr": 0.009679910401777835
+      "post_tax_apr": 0.009513969080604501
     },
     {
       "min_holding_days": 3.0,
@@ -773,7 +773,7 @@
       "total_basis_pnl": -982.3270914493471,
       "total_costs": 2432.93427072886,
       "pre_tax_apr": 0.03265195545745363,
-      "post_tax_apr": 0.022856368820217535
+      "post_tax_apr": 0.02246454535472809
     },
     {
       "min_holding_days": 3.0,
@@ -793,7 +793,7 @@
       "total_basis_pnl": -832.9378796780753,
       "total_costs": 1378.0067952116253,
       "pre_tax_apr": 0.027254639550216328,
-      "post_tax_apr": 0.01907824768515143
+      "post_tax_apr": 0.018751192010548836
     },
     {
       "min_holding_days": 3.0,
@@ -813,7 +813,7 @@
       "total_basis_pnl": -1.635424548656708,
       "total_costs": 5594.382510546418,
       "pre_tax_apr": 0.02412894063364709,
-      "post_tax_apr": 0.016890258443552967
+      "post_tax_apr": 0.0166007111559492
     },
     {
       "min_holding_days": 3.0,
@@ -833,7 +833,7 @@
       "total_basis_pnl": -107.63718149981146,
       "total_costs": 2411.051884992793,
       "pre_tax_apr": 0.03612931855382874,
-      "post_tax_apr": 0.025290522987680114
+      "post_tax_apr": 0.024856971165034172
     },
     {
       "min_holding_days": 3.0,
@@ -853,7 +853,7 @@
       "total_basis_pnl": -82.66708733408566,
       "total_costs": 1368.30161047544,
       "pre_tax_apr": 0.031205314858249098,
-      "post_tax_apr": 0.02184372040077437
+      "post_tax_apr": 0.02146925662247538
     },
     {
       "min_holding_days": 3.0,
@@ -873,7 +873,7 @@
       "total_basis_pnl": 300.7944492592336,
       "total_costs": 5178.361527634488,
       "pre_tax_apr": 0.02698170104394411,
-      "post_tax_apr": 0.018887190730760874
+      "post_tax_apr": 0.01856341031823355
     },
     {
       "min_holding_days": 3.0,
@@ -893,7 +893,7 @@
       "total_basis_pnl": 204.85178012758664,
       "total_costs": 2229.839051101138,
       "pre_tax_apr": 0.03855073898027903,
-      "post_tax_apr": 0.02698551728619533
+      "post_tax_apr": 0.02652290841843198
     },
     {
       "min_holding_days": 3.0,
@@ -913,7 +913,7 @@
       "total_basis_pnl": 178.16439067273802,
       "total_costs": 1242.33840905152,
       "pre_tax_apr": 0.03339997840264446,
-      "post_tax_apr": 0.023379984881851133
+      "post_tax_apr": 0.02297918514101939
     },
     {
       "min_holding_days": 3.0,
@@ -953,7 +953,7 @@
       "total_basis_pnl": 719.7940502814164,
       "total_costs": 7211.046170538769,
       "pre_tax_apr": 0.0004079486458450455,
-      "post_tax_apr": 0.00028556405209153186
+      "post_tax_apr": 0.0002806686683413914
     },
     {
       "min_holding_days": 3.0,
@@ -973,7 +973,7 @@
       "total_basis_pnl": 535.6783877856116,
       "total_costs": 5274.21650529307,
       "pre_tax_apr": 0.0027003308815833024,
-      "post_tax_apr": 0.0018902316171083117
+      "post_tax_apr": 0.0018578276465293121
     },
     {
       "min_holding_days": 3.0,
@@ -1013,7 +1013,7 @@
       "total_basis_pnl": 878.7587824394122,
       "total_costs": 6255.166231732693,
       "pre_tax_apr": 0.005221485008381642,
-      "post_tax_apr": 0.0036550395058671495
+      "post_tax_apr": 0.00359238168576657
     },
     {
       "min_holding_days": 3.0,
@@ -1033,7 +1033,7 @@
       "total_basis_pnl": 605.7804749828081,
       "total_costs": 4460.290557197238,
       "pre_tax_apr": 0.005956038698040876,
-      "post_tax_apr": 0.004169227088628613
+      "post_tax_apr": 0.0040977546242521225
     },
     {
       "min_holding_days": 3.0,
@@ -1073,7 +1073,7 @@
       "total_basis_pnl": 841.495975534994,
       "total_costs": 5525.70866616669,
       "pre_tax_apr": 0.008099242999020564,
-      "post_tax_apr": 0.0056694700993143955
+      "post_tax_apr": 0.005572279183326149
     },
     {
       "min_holding_days": 3.0,
@@ -1093,7 +1093,7 @@
       "total_basis_pnl": 549.8260008525241,
       "total_costs": 3869.0290663725136,
       "pre_tax_apr": 0.008105002025570861,
-      "post_tax_apr": 0.005673501417899603
+      "post_tax_apr": 0.005576241393592753
     },
     {
       "min_holding_days": 3.0,
@@ -1293,7 +1293,7 @@
       "total_basis_pnl": -1233.4627175005612,
       "total_costs": 6797.594265950567,
       "pre_tax_apr": 0.007557645531591201,
-      "post_tax_apr": 0.005290351872113842
+      "post_tax_apr": 0.005199660125734746
     },
     {
       "min_holding_days": 7.0,
@@ -1313,7 +1313,7 @@
       "total_basis_pnl": -544.7835045834909,
       "total_costs": 3149.9809515210604,
       "pre_tax_apr": 0.028502761964829492,
-      "post_tax_apr": 0.019951933375380645
+      "post_tax_apr": 0.019609900231802695
     },
     {
       "min_holding_days": 7.0,
@@ -1333,7 +1333,7 @@
       "total_basis_pnl": -502.7940208098145,
       "total_costs": 1686.847350963505,
       "pre_tax_apr": 0.026648625625581186,
-      "post_tax_apr": 0.018654037937906827
+      "post_tax_apr": 0.018334254430399856
     },
     {
       "min_holding_days": 7.0,
@@ -1353,7 +1353,7 @@
       "total_basis_pnl": 49.24507268229474,
       "total_costs": 6508.730439536118,
       "pre_tax_apr": 0.017946215496935907,
-      "post_tax_apr": 0.012562350847855135
+      "post_tax_apr": 0.012346996261891905
     },
     {
       "min_holding_days": 7.0,
@@ -1373,7 +1373,7 @@
       "total_basis_pnl": -78.25376155019906,
       "total_costs": 3058.0778565128903,
       "pre_tax_apr": 0.0328853945322995,
-      "post_tax_apr": 0.02301977617260965
+      "post_tax_apr": 0.02262515143822206
     },
     {
       "min_holding_days": 7.0,
@@ -1393,7 +1393,7 @@
       "total_basis_pnl": -53.4054477584355,
       "total_costs": 1750.7717000393252,
       "pre_tax_apr": 0.029477777146512278,
-      "post_tax_apr": 0.020634444002558597
+      "post_tax_apr": 0.02028071067680045
     },
     {
       "min_holding_days": 7.0,
@@ -1413,7 +1413,7 @@
       "total_basis_pnl": 439.21209189570857,
       "total_costs": 6522.588289680283,
       "pre_tax_apr": 0.021794154282555357,
-      "post_tax_apr": 0.015255907997788754
+      "post_tax_apr": 0.014994378146398087
     },
     {
       "min_holding_days": 7.0,
@@ -1433,7 +1433,7 @@
       "total_basis_pnl": 239.99549464737728,
       "total_costs": 2945.035443355668,
       "pre_tax_apr": 0.03634843576282548,
-      "post_tax_apr": 0.02544390503397784
+      "post_tax_apr": 0.025007723804823932
     },
     {
       "min_holding_days": 7.0,
@@ -1453,7 +1453,7 @@
       "total_basis_pnl": 241.32149515574696,
       "total_costs": 1608.2186319845596,
       "pre_tax_apr": 0.033429470007171,
-      "post_tax_apr": 0.023400629005019703
+      "post_tax_apr": 0.02299947536493365
     },
     {
       "min_holding_days": 7.0,
@@ -1473,7 +1473,7 @@
       "total_basis_pnl": -1138.7744268738243,
       "total_costs": 6605.211549115861,
       "pre_tax_apr": 0.012295338424326311,
-      "post_tax_apr": 0.008606736897028417
+      "post_tax_apr": 0.008459192835936501
     },
     {
       "min_holding_days": 7.0,
@@ -1493,7 +1493,7 @@
       "total_basis_pnl": -505.30379519497313,
       "total_costs": 3241.1668407990655,
       "pre_tax_apr": 0.028865777304622177,
-      "post_tax_apr": 0.020206044113235525
+      "post_tax_apr": 0.019859654785580053
     },
     {
       "min_holding_days": 7.0,
@@ -1513,7 +1513,7 @@
       "total_basis_pnl": -437.16832767968185,
       "total_costs": 1902.190448730632,
       "pre_tax_apr": 0.027112377553434274,
-      "post_tax_apr": 0.01897866428740399
+      "post_tax_apr": 0.01865331575676278
     },
     {
       "min_holding_days": 7.0,
@@ -1533,7 +1533,7 @@
       "total_basis_pnl": 223.42805201600103,
       "total_costs": 6805.133405397552,
       "pre_tax_apr": 0.01877209183355012,
-      "post_tax_apr": 0.013140464283485084
+      "post_tax_apr": 0.01291519918148248
     },
     {
       "min_holding_days": 7.0,
@@ -1553,7 +1553,7 @@
       "total_basis_pnl": 163.78462280452837,
       "total_costs": 3142.6815989726174,
       "pre_tax_apr": 0.03489186846602648,
-      "post_tax_apr": 0.024424307926218535
+      "post_tax_apr": 0.02400560550462622
     },
     {
       "min_holding_days": 7.0,
@@ -1573,7 +1573,7 @@
       "total_basis_pnl": 119.52261337727063,
       "total_costs": 1789.546507134535,
       "pre_tax_apr": 0.03112612616541572,
-      "post_tax_apr": 0.021788288315791004
+      "post_tax_apr": 0.02141477480180601
     },
     {
       "min_holding_days": 7.0,
@@ -1593,7 +1593,7 @@
       "total_basis_pnl": 620.6315784116775,
       "total_costs": 6603.840438652764,
       "pre_tax_apr": 0.022090777628386123,
-      "post_tax_apr": 0.015463544339870289
+      "post_tax_apr": 0.015198455008329656
     },
     {
       "min_holding_days": 7.0,
@@ -1613,7 +1613,7 @@
       "total_basis_pnl": 316.58649409731765,
       "total_costs": 3070.829717451609,
       "pre_tax_apr": 0.036241136923747794,
-      "post_tax_apr": 0.02536879584662345
+      "post_tax_apr": 0.024933902203538482
     },
     {
       "min_holding_days": 7.0,
@@ -1633,7 +1633,7 @@
       "total_basis_pnl": 280.9121299674118,
       "total_costs": 1733.6330708870012,
       "pre_tax_apr": 0.03267334718463144,
-      "post_tax_apr": 0.02287134302924201
+      "post_tax_apr": 0.022479262863026428
     },
     {
       "min_holding_days": 7.0,
