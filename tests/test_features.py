@@ -4,6 +4,8 @@ import numpy as np
 import polars as pl
 import pytest
 
+from cryptolab.backtest.engine import MS_PER_YEAR
+from cryptolab.data.schemas import BAR_INTERVAL_MS
 from cryptolab.features import derivatives, returns, volatility
 from cryptolab.features.registry import FeatureRegistry, default_registry
 
@@ -92,3 +94,23 @@ def test_registry_builds_features(bars):
     registry = default_registry()
     out = registry.build(bars, {"log_return": {}})
     assert "log_return" in out.columns
+
+
+def test_ewm_stdev_suppresses_an_under_sampled_sigma():
+    """A sigma from two observations is noise, and a vol-scaled signal turns it into leverage."""
+    frame = pl.DataFrame({"log_return": [None, *np.random.default_rng(0).normal(0, 0.01, 40)]})
+    sigma = frame.select(volatility.ewm_stdev(halflife=72, min_samples=20))["sigma"]
+    assert sigma.null_count() == 20  # the null return plus 19 under-sampled bars
+    assert sigma[25] is not None
+
+
+def test_ewm_stdev_rejects_a_degenerate_min_samples():
+    with pytest.raises(ValueError, match="at least two observations"):
+        volatility.ewm_stdev(min_samples=1)
+
+
+def test_bars_per_year_constants_cannot_drift():
+    """The 4h constant and the engine's interval table are two sources of one truth."""
+    assert pytest.approx(volatility.BARS_PER_YEAR_1H / 4) == volatility.BARS_PER_YEAR_4H
+    assert pytest.approx(MS_PER_YEAR / BAR_INTERVAL_MS["4h"]) == volatility.BARS_PER_YEAR_4H
+    assert pytest.approx(MS_PER_YEAR / BAR_INTERVAL_MS["1h"]) == volatility.BARS_PER_YEAR_1H

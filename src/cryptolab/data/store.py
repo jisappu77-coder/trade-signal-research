@@ -20,6 +20,10 @@ from cryptolab.data import schemas
 from cryptolab.validation.sealed import SealedPeriodError, TestPeriodToken
 
 
+class IntervalMismatchError(ValueError):
+    """Raised when a write would overwrite a stored series with a different bar size."""
+
+
 def to_ms(value: str | dt.date | dt.datetime | int) -> int:
     """Convert a date-ish value to int64 UTC milliseconds (bar-open convention)."""
     if isinstance(value, int):
@@ -115,12 +119,20 @@ class ParquetStore:
         symbol: str,
         source_uri: str,
         ingested_at: int | None = None,
+        allow_interval_change: bool = False,
     ) -> list[Path]:
         """Validate, stamp provenance, and write `df` partitioned by year/month.
 
         Rewrites whole month partitions — ingestion is idempotent per month by construction.
+
+        Because the partition path carries no interval, writing 4h klines into a symbol already
+        holding 1h would silently destroy the 1h series month by month. That is refused unless
+        `allow_interval_change` is set. Aggregate with `features.resample.to_bar` instead: it
+        reproduces the native archive bar for bar and leaves the lake intact.
         """
         df = schemas.validate(df, dataset)
+        if dataset in ("ohlcv", "spot_ohlcv") and not allow_interval_change:
+            self._assert_interval_matches(df, dataset, exchange=exchange, symbol=symbol)
         stamped = df.with_columns(
             pl.lit(ingested_at if ingested_at is not None else _now_ms(), dtype=pl.Int64).alias(
                 "ingested_at"
@@ -140,6 +152,24 @@ class ParquetStore:
             part.drop("_year", "_month").sort(time_col).write_parquet(path)
             written.append(path)
         return written
+
+    def _assert_interval_matches(self, df: pl.DataFrame, dataset: str, *, exchange: str, symbol: str) -> None:
+        """Refuse a write whose bar spacing differs from what this symbol already holds."""
+        existing = sorted(self.dataset_dir(dataset, exchange, symbol).glob("year=*/month=*/*.parquet"))
+        if not existing or df.height < 2:
+            return
+        stored = pl.read_parquet(existing[0], columns=["open_time"]).sort("open_time")
+        if stored.height < 2:
+            return
+        held = _modal_gap(stored["open_time"])
+        incoming = _modal_gap(df.sort("open_time")["open_time"])
+        if held and incoming and held != incoming:
+            raise IntervalMismatchError(
+                f"{symbol} already holds {held // 60_000}m bars but this write carries "
+                f"{incoming // 60_000}m bars. The partition path has no interval level, so this "
+                "would overwrite the stored series. Use features.resample.to_bar to aggregate in "
+                "memory, or pass allow_interval_change=True if you genuinely mean to replace it."
+            )
 
     # ---- read --------------------------------------------------------------------
 
@@ -213,6 +243,13 @@ class ParquetStore:
             symbol: self.read(dataset, exchange=exchange, symbol=symbol, start=start, end=end, token=token)
             for symbol in symbols
         }
+
+
+def _modal_gap(times: pl.Series) -> int | None:
+    """Most common spacing between consecutive timestamps, or None if undeterminable."""
+    diffs = times.diff().drop_nulls()
+    modal = diffs.mode()
+    return None if modal.is_empty() else int(modal[0])
 
 
 def _now_ms() -> int:

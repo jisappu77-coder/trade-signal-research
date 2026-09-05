@@ -91,3 +91,17 @@ def test_random_signal_is_reproducible(bars):
     second = signal.generate(bars, {"seed": 1})
     assert first.equals(second)
     assert not first.equals(signal.generate(bars, {"seed": 2}))
+
+
+def test_nan_target_is_rejected_with_a_useful_message(bars):
+    """A vol-scaled signal reaches NaN via 0 * inf when sigma is zero; the message must say so."""
+    signal = ZeroSignal()
+    frame = pl.DataFrame(
+        {
+            "timestamp": [1, 2, 3],
+            "target_position": [0.5, float("nan"), 0.5],
+            "confidence": [1.0, 1.0, 1.0],
+        }
+    )
+    with pytest.raises(ValueError, match="NaN target_position"):
+        signal.validate_output(frame)

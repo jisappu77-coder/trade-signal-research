@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 
@@ -55,6 +56,14 @@ def build_report(
     notes: Sequence[str] = (),
     tier: int = 1,
     promotable: bool = True,
+    legs: Sequence[dict[str, Any]] = (),
+    short_leg_negative: bool = False,
+    attribution_line: str = "",
+    tax_line: str = "",
+    pre_tax_return: float | None = None,
+    post_tax_return: float | None = None,
+    effective_tax_rate: float | None = None,
+    tds_multiple_of_capital: float | None = None,
 ) -> StrategyReport:
     """Assemble one report. Every displayed number comes from the objects passed in."""
     return StrategyReport(
@@ -84,5 +93,13 @@ def build_report(
         notes=list(notes),
         tier=tier,
         promotable=promotable,
+        legs=list(legs),
+        short_leg_negative=short_leg_negative,
+        attribution_line=attribution_line,
+        tax_line=tax_line,
+        pre_tax_return=pre_tax_return,
+        post_tax_return=post_tax_return,
+        effective_tax_rate=effective_tax_rate,
+        tds_multiple_of_capital=tds_multiple_of_capital,
         generated_at=dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d %H:%M UTC"),
     )

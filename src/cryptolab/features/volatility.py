@@ -7,13 +7,33 @@ from typing import cast
 import polars as pl
 
 BARS_PER_YEAR_1H = 8766.0
+BARS_PER_YEAR_4H = 2191.5
+
+# A volatility estimate from two observations is noise, and TSMOM levers *up* as sigma falls, so an
+# under-sampled sigma produces near-max-leverage positions on the first bars of every run.
+DEFAULT_MIN_SAMPLES = 20
 
 
-def ewm_stdev(returns: str = "log_return", *, halflife: int = 72, alias: str = "sigma") -> pl.Expr:
-    """EWM standard deviation of returns over `halflife` bars. Causal; no centring."""
+def ewm_stdev(
+    returns: str = "log_return",
+    *,
+    halflife: int = 72,
+    min_samples: int = DEFAULT_MIN_SAMPLES,
+    alias: str = "sigma",
+) -> pl.Expr:
+    """EWM standard deviation of returns over `halflife` bars. Causal; no centring.
+
+    `min_samples` suppresses the estimate until enough observations exist. Without it polars emits a
+    number from the second observation onward, and a sigma computed from two samples is noise — which
+    any vol-scaled signal turns into leverage.
+    """
     if halflife < 1:
         raise ValueError("halflife must be >= 1")
-    return pl.col(returns).ewm_std(half_life=halflife, ignore_nulls=True).alias(alias)
+    if min_samples < 2:
+        raise ValueError("min_samples must be >= 2; a stdev needs at least two observations")
+    return (
+        pl.col(returns).ewm_std(half_life=halflife, ignore_nulls=True, min_samples=min_samples).alias(alias)
+    )
 
 
 def annualise(

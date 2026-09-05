@@ -15,6 +15,7 @@ import pytest
 from cryptolab.backtest.costs import REGIME_ORDER, get_regime
 from cryptolab.backtest.engine import BacktestConfig, run_backtest
 from cryptolab.backtest.portfolio import PortfolioState, apply_funding
+from cryptolab.signals.tsmom import TSMOM
 from cryptolab.validation.synthetic import (
     LookaheadSignal,
     MomentumProbe,
@@ -23,23 +24,39 @@ from cryptolab.validation.synthetic import (
     synthetic_bars,
 )
 
-CAUSAL_SIGNALS = [ZeroSignal(), RandomSignal(seed=3), MomentumProbe()]
+# (signal, params) pairs. TSMOM is the first continuous-valued signal here — every other member
+# emits only {-1, 0, 1} — so the bit-identical shift test now has to hold across a float pipeline.
+# Both declared bar sizes are exercised, and L/H are taken at their extremes.
+CAUSAL_CASES = [
+    (ZeroSignal(), {}),
+    (RandomSignal(seed=3), {"seed": 3}),
+    (MomentumProbe(), {"lookback": 24}),
+    (TSMOM(), {"bar": "1h", "lookback_bars": 24, "vol_halflife": 36}),
+    (TSMOM(), {"bar": "1h", "lookback_bars": 168, "vol_halflife": 144}),
+]
+CAUSAL_4H_CASES = [
+    (TSMOM(), {"bar": "4h", "lookback_bars": 24, "vol_halflife": 36}),
+    (TSMOM(), {"bar": "4h", "lookback_bars": 168, "vol_halflife": 144}),
+]
 
 
-def _params(signal):
-    return signal.grid()[0]
+def _case_id(case):
+    signal, params = case
+    return f"{signal.name}-{'-'.join(str(v) for v in params.values())}" if params else signal.name
 
 
 # ---- 1. shift test -------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("signal", CAUSAL_SIGNALS, ids=lambda s: s.name)
-def test_shift_test_causal_signals_are_bit_identical(bars, signal):
+@pytest.mark.parametrize("case", CAUSAL_CASES, ids=_case_id)
+def test_shift_test_causal_signals_are_bit_identical(bars, case):
     """Recompute with all future data truncated; outputs must be bit-identical (§14.2.1)."""
-    params = _params(signal)
+    signal, params = case
     vectorised = signal.generate(bars, params)
 
-    for cut in (200, 500, 1200, bars.height):
+    # Every cut must exceed the declared warm-up, or a divergence would be warm-up, not lookahead.
+    for cut in (400, 800, 1200, bars.height):
+        assert cut > signal.max_lookback_bars
         truncated = signal.generate(bars.head(cut), params)
         expected = vectorised.head(cut)
         assert truncated["timestamp"].to_list() == expected["timestamp"].to_list()
@@ -48,6 +65,32 @@ def test_shift_test_causal_signals_are_bit_identical(bars, signal):
             expected["target_position"].to_numpy(),
             err_msg=f"{signal.name} diverges when truncated at {cut} — lookahead bug",
         )
+
+
+@pytest.mark.parametrize("case", CAUSAL_4H_CASES, ids=_case_id)
+def test_shift_test_holds_at_4h(bars_4h, case):
+    """TSMOM is declared at both bar sizes, so both must clear the shift test."""
+    signal, params = case
+    vectorised = signal.generate(bars_4h, params)
+    for cut in (400, 900, bars_4h.height):
+        truncated = signal.generate(bars_4h.head(cut), params)
+        np.testing.assert_array_equal(
+            truncated["target_position"].to_numpy(),
+            vectorised.head(cut)["target_position"].to_numpy(),
+            err_msg=f"{signal.name} diverges at 4h when truncated at {cut}",
+        )
+
+
+def test_chunk_layout_does_not_change_the_output(bars):
+    """Real data arrives multi-chunk from `scan_parquet`; the fixtures are single-chunk.
+
+    A signal whose output depended on chunk layout would pass every test here and diverge on the
+    lake. TSMOM rechunks defensively; this is what proves it matters.
+    """
+    signal, params = TSMOM(), {"bar": "1h", "lookback_bars": 96, "vol_halflife": 72}
+    single = signal.generate(bars.rechunk(), params)
+    multi = signal.generate(pl.concat([bars.head(700), bars.slice(700)], rechunk=False), params)
+    np.testing.assert_array_equal(multi["target_position"].to_numpy(), single["target_position"].to_numpy())
 
 
 def test_shift_test_catches_a_real_lookahead_bug(bars):
@@ -66,10 +109,20 @@ def test_shift_test_catches_a_real_lookahead_bug(bars):
 
 
 def _shuffled_bars(bars: pl.DataFrame, seed: int) -> pl.DataFrame:
-    """Rebuild a price path from the same returns in random order."""
+    """Rebuild a price path from the same returns in random order, with the drift removed.
+
+    Shuffling alone preserves the sum of returns, so every shuffled path keeps the original drift.
+    A signal that merely holds a direction — and especially one that levers *up* when volatility is
+    low, as any vol-scaled signal does — can harvest that drift and look like it has foresight. The
+    test would then fail a perfectly causal strategy.
+
+    Demeaning is also what "returns indistinguishable from zero" should mean: the null hypothesis is
+    no *predictability*, tested on a path with no drift to find.
+    """
     rng = np.random.default_rng(seed)
     close = bars["close"].to_numpy()
     rets = np.diff(close) / close[:-1]
+    rets = rets - rets.mean()
     rng.shuffle(rets)
     new_close = close[0] * np.cumprod(1 + rets)
     new_close = np.concatenate([[close[0]], new_close])
@@ -81,19 +134,20 @@ def _shuffled_bars(bars: pl.DataFrame, seed: int) -> pl.DataFrame:
     )
 
 
-@pytest.mark.parametrize("signal", CAUSAL_SIGNALS, ids=lambda s: s.name)
-def test_shuffle_test_sharpe_indistinguishable_from_zero(bars, signal):
+@pytest.mark.parametrize("case", CAUSAL_CASES, ids=_case_id)
+def test_shuffle_test_sharpe_indistinguishable_from_zero(bars, case):
     """On shuffled returns, a causal strategy must earn nothing (§14.2.2).
 
     Asserted on **gross** returns. The question this test asks is whether the signal has foresight,
     and net returns cannot answer it: under real costs every strategy loses on shuffled data, so a
     net-return version of this test would pass anything that merely trades enough.
     """
+    signal, params = case
     config = BacktestConfig(regime_name="conservative", warmup_bars=200)
     sharpes = []
-    for seed in range(6):
+    for seed in range(12):
         shuffled = _shuffled_bars(bars, seed)
-        targets = signal.generate(shuffled, _params(signal))
+        targets = signal.generate(shuffled, params)
         result = run_backtest(shuffled, targets, config)
         sharpes.append(result.sharpe(gross=True))
 

@@ -34,6 +34,10 @@ FUNDING: Final[dict[str, pl.DataType]] = {
     "funding_time": pl.Int64(),
     "symbol": pl.Utf8(),
     "funding_rate": pl.Float64(),
+    # Carried per settlement, not per month: §5.1 warns that symbols move between 8h, 4h, 2h and 1h
+    # cadences, and a venue shortens the interval exactly when funding goes extreme. Annualising at
+    # an assumed 8h would misstate precisely the episodes a carry sleeve earns most from.
+    "interval_hours": pl.Float64(),
     "mark_price": pl.Float64(),
 }
 
@@ -64,8 +68,11 @@ CONTRACT_SPEC_CHANGES: Final[dict[str, pl.DataType]] = {
     "handled": pl.Boolean(),
 }
 
+# Spot klines share the OHLCV shape but are a separate dataset: CARRY is long spot / short perp,
+# so both must coexist in the lake without one overwriting the other.
 SCHEMAS: Final[dict[str, dict[str, pl.DataType]]] = {
     "ohlcv": OHLCV,
+    "spot_ohlcv": OHLCV,
     "funding": FUNDING,
     "open_interest": OPEN_INTEREST,
     "mark_price": MARK_PRICE,
@@ -75,6 +82,7 @@ SCHEMAS: Final[dict[str, dict[str, pl.DataType]]] = {
 # The timestamp column that orders each dataset.
 TIME_COLUMN: Final[dict[str, str]] = {
     "ohlcv": "open_time",
+    "spot_ohlcv": "open_time",
     "funding": "funding_time",
     "open_interest": "timestamp",
     "mark_price": "open_time",

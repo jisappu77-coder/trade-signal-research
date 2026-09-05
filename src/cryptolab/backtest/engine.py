@@ -170,17 +170,37 @@ class BacktestResult:
         return float(np.max((peak - equity) / peak))
 
     def breakeven_cost_bps(self) -> float:
-        """§7.1 — the round-trip cost at which net Sharpe crosses zero.
+        """§7.1 — the **round-trip** cost at which net P&L crosses zero.
 
-        Solved directly: net P&L is gross minus (turnover x cost), so the break-even round-trip is
-        the gross edge divided by the traded notional. Reported in every header because it is more
-        informative than the Sharpe itself.
+        Every fill of notional X costs `X * one_way_bps * BPS`, so total fees equal
+        `traded_notional * one_way_bps * BPS` and the break-even one-way rate is
+        `edge / traded_notional`. A round trip is two fills, hence the factor of two.
+
+        The units matter: the §11 gate compares this against `2 * round_trip_taker_bps`, so
+        returning a one-way figure here (as this did before) silently demanded roughly four times
+        the real hurdle. `one_way_breakeven_cost_bps` exposes the other convention explicitly
+        rather than leaving callers to guess which one they hold.
         """
+        return 2.0 * self.one_way_breakeven_cost_bps()
+
+    def one_way_breakeven_cost_bps(self) -> float:
+        """Break-even cost per single fill. Half the round-trip figure, by construction."""
         traded = float(self.equity_curve["traded_notional"].sum())
         if traded <= 0:
             return 0.0
         edge = self.gross_pnl - self.funding_paid
         return 0.0 if edge <= 0 else edge / traded / BPS
+
+    def realised_cost_drag_bps_per_year(self) -> float:
+        """Cost drag measured from the fees actually charged, not from the §9.4 formula.
+
+        Exists as a cross-check: if this and `cost_drag_bps_per_year()` disagree by a factor of two,
+        the turnover convention has drifted from the cost convention again.
+        """
+        span_years = self.bars * self.interval_ms / MS_PER_YEAR
+        if span_years <= 0 or self.config.initial_equity <= 0:
+            return 0.0
+        return self.fees_and_slippage / self.config.initial_equity / span_years / BPS
 
     def cost_drag_bps_per_year(self) -> float:
         return cost_drag_bps_per_year(self.turnover_per_year, self.config.regime.round_trip_taker_bps)
@@ -341,6 +361,8 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
 
         # 7. fill at t open + slippage + fees
         traded_notional = 0.0
+        units_before_fill = state.position.units
+        costs_before_fill = state.realised_costs
         if delta_target != 0.0 and equity_now > 0 and fill_price > 0:
             delta_units = delta_target * denominator / fill_price
             bar_volume = float(volumes[i])
@@ -370,6 +392,16 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
         records.append(
             {
                 "open_time": t,
+                # Attribution needs the position held *through* the bar and the cost charged *at*
+                # this bar. Reconstructing them from position_units[i-1] and a diff of the
+                # cumulative cost column works but is fragile; recording them makes leg
+                # attribution a projection rather than an inference.
+                "units_before_fill": units_before_fill,
+                # The fill price is the bar's open (§9.1). Attribution needs it because the
+                # position changes mid-bar: prev_close -> open is earned by the old position,
+                # open -> close by the new one.
+                "fill_price": fill_price,
+                "bar_cost": state.realised_costs - costs_before_fill,
                 "price": mark_price,
                 "target_position": float(effective[i]),
                 "position_units": state.position.units,
@@ -394,7 +426,10 @@ def run_backtest(  # noqa: PLR0915 — the loop mirrors the eight numbered steps
     fees_and_slippage = state.realised_costs
     gross_pnl = net_pnl + fees_and_slippage + state.funding_paid
     span_years = max((int(open_times[-1]) - int(open_times[0])) / MS_PER_YEAR, 1e-9)
-    turnover = float(curve["traded_notional"].sum()) / config.initial_equity / span_years
+    # Turnover is counted in **round trips** per year, which is the unit §9.4's arithmetic assumes
+    # ("a strategy trading 10x per day needs ~110 bps/day at ~11 bps round-trip"). `traded_notional`
+    # sums one-way fills, so it is halved. Counting one-way legs here made cost drag come out 2x.
+    turnover = float(curve["traded_notional"].sum()) / 2.0 / config.initial_equity / span_years
 
     return BacktestResult(
         equity_curve=curve,

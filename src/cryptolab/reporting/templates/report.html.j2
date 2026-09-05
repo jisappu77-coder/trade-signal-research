@@ -31,6 +31,19 @@
 </div>
 {% endif %}
 
+{% if r.short_leg_negative %}
+<div class="verdict" data-state="candidate" style="margin-top:12px">
+  <span class="verdict-icon" aria-hidden="true">!</span>
+  <div>
+    <div class="verdict-word">SHORT LEG HAS NEGATIVE EXPECTANCY</div>
+    <div class="verdict-text">{{ r.attribution_line }} — §8.1 requires this be stated rather than
+      netted into the headline: momentum concentrates in winners while losers frequently rebound,
+      so a strategy carried entirely by its long leg is a different proposition from a
+      two-sided one.</div>
+  </div>
+</div>
+{% endif %}
+
 {% if not r.promotable %}
 <p class="note" style="margin-top:12px">
   <strong>Tier {{ r.tier }} — not promotable.</strong> This run exists to exercise the harness.
@@ -131,6 +144,56 @@
 {{ charts.regimes | safe }}
 <p class="caption">Net Sharpe under each of the four fixed §7 regimes; the headline
    ({{ r.regime.name }}) is ringed. The regimes are a fixed adversary, not a parameter.</p>
+{% endif %}
+
+{% if r.legs %}
+<h2>Long / short leg attribution (§8.1)</h2>
+<div class="scroll">
+  <table>
+    <thead><tr><th>Leg</th><th class="num">Bars</th><th class="num">Time</th>
+      <th class="num">Gross</th><th class="num">Fees</th><th class="num">Funding</th>
+      <th class="num">Net</th><th class="num">Expectancy</th><th class="num">Hit rate</th>
+    </tr></thead>
+    <tbody>
+    {% for leg in r.legs %}
+      <tr>
+        <td>{{ leg.leg }}</td>
+        <td class="num">{{ leg.bars }}</td>
+        <td class="num">{{ leg.fraction_of_time | pct }}</td>
+        <td class="num">{{ leg.gross_pnl | num(0) }}</td>
+        <td class="num">{{ leg.fees_and_slippage | num(0) }}</td>
+        <td class="num">{{ leg.funding_paid | num(0) }}</td>
+        <td class="num">{{ leg.net_pnl | num(0) }}</td>
+        <td class="num">{{ leg.net_expectancy_bps | num(1) }} bps</td>
+        <td class="num">{{ leg.hit_rate | pct }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if charts.legs %}{{ charts.legs | safe }}{% endif %}
+<p class="caption">Expectancy is net P&amp;L per unit of notional traded. The legs sum to the run's
+   net P&amp;L by construction — an attribution that lost money somewhere would not reconcile.</p>
+{% endif %}
+
+{% if r.post_tax_return is not none %}
+<h2>Pre-tax and post-tax (§17)</h2>
+<div class="stats">
+  <div class="stat"><div class="stat-k">Pre-tax return</div>
+    <div class="stat-v">{{ r.pre_tax_return | pct }}</div><div class="stat-n">as backtested</div></div>
+  <div class="stat"><div class="stat-k">Post-tax return</div>
+    <div class="stat-v">{{ r.post_tax_return | pct }}</div>
+    <div class="stat-n">§115BBH, no loss set-off</div></div>
+  <div class="stat"><div class="stat-k">Effective rate</div>
+    <div class="stat-v">{{ r.effective_tax_rate | pct }}</div>
+    <div class="stat-n">exceeds 30% when losses strand</div></div>
+  <div class="stat"><div class="stat-k">TDS withheld</div>
+    <div class="stat-v">{{ r.tds_multiple_of_capital | num(1) }}×</div>
+    <div class="stat-n">capital per year — creditable, but financed</div></div>
+</div>
+<p class="caption">{{ r.tax_line }} §194S TDS is withholding creditable against final liability,
+   not a cost per trade; it is shown as a financing line. Confirm treatment with a qualified Indian
+   tax professional — this models economics and is not tax advice.</p>
 {% endif %}
 
 {% if charts.grid %}

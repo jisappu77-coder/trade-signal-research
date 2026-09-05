@@ -55,6 +55,15 @@ class StrategyReport:
     flat_fraction: float = 0.0
     kill_reason: str | None = None
     killed_from: str | None = None
+    # §8.1 leg attribution and §17 tax, as structured rows rather than prose notes.
+    legs: list[dict[str, Any]] = field(default_factory=list)
+    short_leg_negative: bool = False
+    attribution_line: str = ""
+    tax_line: str = ""
+    pre_tax_return: float | None = None
+    post_tax_return: float | None = None
+    effective_tax_rate: float | None = None
+    tds_multiple_of_capital: float | None = None
     equity: list[SeriesPoint] = field(default_factory=list)
     fold_sharpes: list[float] = field(default_factory=list)
     regime_sharpes: dict[str, float] = field(default_factory=dict)
@@ -120,6 +129,12 @@ class StrategyReport:
             "flat_fraction": self.flat_fraction,
             "kill_reason": self.kill_reason,
             "killed_from": self.killed_from,
+            "legs": self.legs,
+            "short_leg_negative": self.short_leg_negative,
+            "pre_tax_return": self.pre_tax_return,
+            "post_tax_return": self.post_tax_return,
+            "effective_tax_rate": self.effective_tax_rate,
+            "tds_multiple_of_capital": self.tds_multiple_of_capital,
             "status": self.status,
             "verdict": self.verdict_line,
             "tier": self.tier,
@@ -169,6 +184,14 @@ def _charts_for(report: StrategyReport) -> dict[str, str]:
             label="Net Sharpe under each cost regime",
             highlight=report.regime.name,
         )
+    if report.legs:
+        active = [leg for leg in report.legs if leg["leg"] != "flat"]
+        if active:
+            out["legs"] = charts.diverging_bars(
+                [leg["leg"] for leg in active],
+                [leg["net_expectancy_bps"] for leg in active],
+                label="Net expectancy per leg, bps per unit of notional traded",
+            )
     if report.grid_sharpes:
         out["grid"] = charts.diverging_bars(
             list(report.grid_sharpes),

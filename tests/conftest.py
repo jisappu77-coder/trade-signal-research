@@ -17,6 +17,12 @@ def splits() -> SplitProtocol:
     return SplitProtocol.from_config(SPLITS_YAML)
 
 
+@pytest.fixture(scope="module")
+def module_splits() -> SplitProtocol:
+    """Module-scoped twin, for fixtures whose setup is too expensive to repeat per test."""
+    return SplitProtocol.from_config(SPLITS_YAML)
+
+
 @pytest.fixture
 def store(tmp_path, splits) -> ParquetStore:
     return ParquetStore(tmp_path / "data", splits)
@@ -25,6 +31,12 @@ def store(tmp_path, splits) -> ParquetStore:
 @pytest.fixture
 def bars():
     return synthetic_bars(2000, seed=42)
+
+
+@pytest.fixture
+def bars_4h():
+    """A 4h series. TSMOM declares both bar sizes, so both must be exercised."""
+    return synthetic_bars(2000, seed=42, interval_ms=14_400_000)
 
 
 @pytest.fixture

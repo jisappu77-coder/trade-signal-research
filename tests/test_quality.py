@@ -73,6 +73,7 @@ def test_funding_cap_breach_fails():
             "funding_time": [0, 28_800_000],
             "symbol": ["BTCUSDT", "BTCUSDT"],
             "funding_rate": [0.0001, 0.02],
+            "interval_hours": [8.0, 8.0],
             "mark_price": [20000.0, 20100.0],
         }
     )
